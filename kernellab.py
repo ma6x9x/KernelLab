@@ -38,7 +38,7 @@ except ImportError:
 KC = {
     "23F77":  "/Users/kolby/Documents/ios-xnu-hunt/kernels/23F77/23F77__iPhone13,2_3/kernelcache.research.iPhone13,2",
     "24A435": "/Users/kolby/Documents/ios-xnu-hunt/kernels/24A435/24A435__iPhone18,2/kernelcache.research.iPhone18,2",
-    "24B119": "/Users/kolby/Documents/ios-xnu-hunt/kernels/24B119/24B119__iPhone13,2/kernelcache.research.iPhone13,2",
+    "24B119": None,  # cache not on disk yet (24B115/24B5099f are)
 }
 
 

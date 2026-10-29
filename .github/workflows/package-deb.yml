@@ -1,0 +1,44 @@
+name: 📦 Package kernellab (.deb)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kernellab.py"
+      - "packaging/**"
+      - ".github/workflows/package-deb.yml"
+  workflow_dispatch:
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: ver
+        run: |
+          V=$(grep -m1 '^Version:' packaging/control | awk '{print $2}')
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "packaging kernellab $V"
+
+      - name: Build rootless deb
+        run: |
+          chmod +x packaging/build.sh
+          ./packaging/build.sh "${{ steps.ver.outputs.version }}" build
+
+      - name: Verify deb
+        run: |
+          dpkg-deb --info build/*.deb | head -20
+          dpkg-deb --contents build/*.deb | head -20
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernellab-deb
+          path: build/kernellab_*.deb
+          if-no-files-found: error
+
+      - name: Summary
+        run: echo "**kernellab** ${{ steps.ver.outputs.version }} deb packaged (rootless Procursus layout). Bump Version: in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"

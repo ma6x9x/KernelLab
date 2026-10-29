@@ -1,0 +1,7 @@
+#!/bin/sh
+# postinst — chmod the harness (stage copies can drop the +x) and print the
+# first-tap hint. Rootless: no chown (dpkg --root-owner-group handles it).
+chmod 755 /var/jb/usr/bin/kernellab 2>/dev/null || chmod 755 /usr/bin/kernellab 2>/dev/null || true
+echo "kernellab installed. Try: kernellab tables --cache 23F77 --table iogpu.deviceconn"
+echo "Point KC at your own extracted kernelcaches (see /var/jb/usr/share/kernellab/README.md)." 2>/dev/null || true
+exit 0
