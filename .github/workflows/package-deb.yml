@@ -41,4 +41,5 @@ jobs:
           if-no-files-found: error
 
       - name: Summary
-        run: echo "**kernellab** ${{ steps.ver.outputs.version }} deb packaged (rootless Procursus layout). Bump Version: in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "kernellab version packaged (rootless Procursus layout). Bump the Version field in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"
