@@ -14,8 +14,8 @@ mkdir -p "$STAGE/DEBIAN" \
 cp kernellab.py "$STAGE/usr/bin/kernellab"
 chmod 755 "$STAGE/usr/bin/kernellab"
 
-[ -f README.md ] && cp README.md "$STAGE/usr/share/kernellab/"
-[ -f DEBIAN-STYLE.md ] && cp DEBIAN-STYLE.md "$STAGE/usr/share/kernellab/"
+[ -f README.md ] && cp README.md "$STAGE/usr/share/kernellab/" || true
+[ -f DEBIAN-STYLE.md ] && cp DEBIAN-STYLE.md "$STAGE/usr/share/kernellab/" || true
 cp NOTES/*.md "$STAGE/usr/share/kernellab/NOTES/" 2>/dev/null || true
 
 cp packaging/control "$STAGE/DEBIAN/control"
