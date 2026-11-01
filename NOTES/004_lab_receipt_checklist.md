@@ -47,3 +47,26 @@ receipt:      map | emu | device
 ```
 
 `klconsole` shows the same five stage names beside the 26.5 and 27.0 chips. Green is sandbox, leak, and krw. Amber is race. Red is sptm. The color is a label. It is not a result.
+
+## Honesty / Lum1na parity
+
+KernelLab adopts Lum1na lab discipline. Evidence weights stay the table
+above: `device` = 1.0, `emu` = 0.5, `map` = 0.3. An emu verdict can kill a
+lane or rank arms. It does not replace a device receipt.
+
+`CONTRACT-UNVERIFIED`, an honest `SKIP`, and `NO-PIN` mean there is no
+corroborated oracle. Refuse the positive claim.
+
+`kernellab gate` prints `APPLE-SUBMIT: closed`. JB-rig kernel testing is
+not a fileable finding.
+
+A device export for iPanic is Ident, then the full console from the tap or
+command under test, then the `.ips` when the run panics (the path, or
+`none`). Handoff is panic type → faulting frame → stage. The stage is one
+name from the ladder above.
+
+Pair Lum1na Mind by the build id from `kernellab target show` (`26.5` /
+`23F77`, `27.0` / `24A435`). Mind is not in this deb.
+
+Non-goals: no attack `.m` authorship, no probe codegen, and no copying
+`Exploit` bodies into KernelLab.
