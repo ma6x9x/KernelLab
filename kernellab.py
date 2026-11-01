@@ -54,7 +54,8 @@ KNOWN_TABLES = {
     },
 }
 
-# Userspace stubs only. ident never maps a kernelcache into the emulator.
+# Userspace stubs named in this repo's notes. ident is the only one.
+# emu43748 is a separate pinned command, not a sim id.
 ALLOWLIST = {
     "ident": (
         "contract stub: report target file and pinned-entry present-vs-missing, "
@@ -66,31 +67,35 @@ ALLOWLIST = {
 IDENT_STUB = bytes.fromhex("200080d2c0035fd6")
 STUB_BASE = 0x10000000
 
-# Judgment-pack device table (GAMEPLAN + the pack cache map). Identity only.
-# 23F77 and 23G71 do not share addresses. 24A435/24A437 are a different machine.
-# 21D50 is a shape reference, not the hunt device. 24B119 is the same machine
-# as 23F77 in the pack's cache path and still has no method-table pin.
+# Judgment-pack device table plus the trains already named in this repo.
+# 23F77 is 26.5 on iPhone13,2. 24A435 is 27.0 on iPhone18,2. 24A437 is the
+# unpinned 27.0-family cache on that same machine. Trains are labels only.
+# 23F77 and 23G71 do not share addresses. 21D50 is a shape reference.
+# 24B119 is the same machine as 23F77 in the pack cache map and is not 27.0.
 FLEET = (
-    ("23F77", "hunt", "iPhone13,2", "primary hunt device"),
-    ("23G71", "hunt-ipad", "iPad8,*", "addresses do not transfer from 23F77"),
-    ("21D50", "shape-reference", "iPhone12-mini", "shape reference only, not the hunt device"),
-    ("24A435", "diff-input", "iPhone18,2",
-     "different machine from the hunt phone; do not paste addresses onto 23F77"),
-    ("24A437", "diff-input", "iPhone18,2",
-     "same machine class as 24A435; no pinned method table"),
-    ("24B119", "diff-input", "iPhone13,2",
+    # tag, role, machine, train, note
+    ("23F77", "hunt", "iPhone13,2", "26.5", "26.5 hunt host"),
+    ("23G71", "hunt-ipad", "iPad8,*", "", "addresses do not transfer from 23F77"),
+    ("21D50", "shape-reference", "iPhone12-mini", "", "shape reference only, not the hunt device"),
+    ("24A435", "diff-input", "iPhone18,2", "27.0",
+     "27.0 on a different machine; do not paste addresses onto 23F77"),
+    ("24A437", "diff-input", "iPhone18,2", "27.0",
+     "27.0 family, same machine as 24A435; no pinned method table"),
+    ("24B119", "diff-input", "iPhone13,2", "",
      "same machine as 23F77 in the pack cache map; VA band pinned; no method-table pin"),
 )
 FLEET_BY = {
-    tag: {"role": role, "machine": machine, "note": note}
-    for tag, role, machine, note in FLEET
+    tag: {"role": role, "machine": machine, "train": train, "note": note}
+    for tag, role, machine, train, note in FLEET
 }
+TRAIN_RE = re.compile(r"^[0-9]{2}\.[0-9]$")
 
-# The lab cannot open this. A diff or a stub dry-run is not a kread.
+# JB-rig testing is allowed. It is not an Apple submission.
+# This lab cannot open the gate, and a complete hunt-SKU chain is still required.
 GATE_LINES = (
     "APPLE-SUBMIT: closed",
-    "GAMEPLAN: kernel read/write is not obtained. hasKread stays false.",
-    "A target pick, a survivor-diff, or sim ident does not open this gate.",
+    "JB-rig kernel testing is not a fileable finding.",
+    "The gate stays closed until a complete hunt-SKU chain. This lab cannot open it.",
     "Do not submit to Apple.",
 )
 
@@ -104,11 +109,12 @@ def print_gate():
 
 def fleet_public():
     rows = []
-    for tag, role, machine, note in FLEET:
+    for tag, role, machine, train, note in FLEET:
         rows.append({
             "build": tag,
             "role": role,
             "machine": machine,
+            "train": train,
             "pinned_entry": tag in KNOWN_TABLES,
             "note": note,
         })
@@ -615,9 +621,10 @@ def cmd_target_list(as_json):
         )
     for row in inv["fleet"]:
         pin = "yes" if row["pinned_entry"] else "no"
+        train = row["train"] or "(none)"
         print(
             f"fleet {row['build']} role={row['role']} machine={row['machine']} "
-            f"pinned-entry={pin}"
+            f"train={train} pinned-entry={pin}"
         )
         print(f"  {row['note']}")
     target = inv["target"]
@@ -642,19 +649,78 @@ def cmd_target_show(as_json):
         "baseline_path": doc.get("baseline_path"),
         "fleet_role": meta["role"] if meta else None,
         "machine": meta["machine"] if meta else None,
+        "train": meta["train"] if meta else None,
         "submit_gate": "closed",
     }
     if as_json:
         json.dump(view, sys.stdout, indent=2, sort_keys=True)
         sys.stdout.write("\n")
         return
-    for key in ("state", "build", "path", "baseline", "baseline_path", "fleet_role", "machine"):
+    for key in ("state", "build", "path", "baseline", "baseline_path", "fleet_role", "machine", "train"):
         val = view[key]
         print(f"{key}: {val if val else '(none)'}")
     print_gate()
 
 
-def cmd_target_set(build, baseline, path, clear_baseline):
+def resolve_train(train):
+    """Pick one on-disk fleet build for a train label. Prefer a pinned entry."""
+    if not train or not TRAIN_RE.match(train):
+        raise SystemExit(f"refusing train {train!r} — expected a label like 26.5 or 27.0")
+    rows = [row for row in fleet_public() if row["train"] == train]
+    if not rows:
+        known = sorted({row["train"] for row in fleet_public() if row["train"]})
+        raise SystemExit(
+            f"no fleet tag for train {train}. known trains: {' '.join(known)}"
+        )
+    present = []
+    for row in rows:
+        path = preferred_path(row["build"])
+        if path:
+            present.append((row, path))
+    if not present:
+        lines = [
+            f"no kernelcache on disk for train {train}.",
+            "drop a file whose name contains kernelcache under:",
+        ]
+        for row in rows:
+            lines.append(f"  /var/jb/var/kernellab/caches/{row['build']}/")
+        lines.append("off-device, the same <build> directory under a caches root works.")
+        lines.append(_search_blurb(rows[0]["build"]))
+        raise SystemExit("\n".join(lines))
+
+    def sort_key(item):
+        row, path = item
+        return (
+            0 if row["pinned_entry"] else 1,
+            0 if row["role"] == "hunt" else 1,
+            _rank_key({"path": path}),
+        )
+
+    present.sort(key=sort_key)
+    chosen, path = present[0]
+    also = [row["build"] for row, _path in present[1:]]
+    return chosen["build"], path, also
+
+
+def cmd_target_set(build, baseline, path, clear_baseline, train=None, baseline_train=None):
+    if train and build:
+        raise SystemExit("pass --build or --train, not both")
+    if baseline_train and baseline:
+        raise SystemExit("pass --baseline or --baseline-train, not both")
+    if train and path:
+        raise SystemExit("--path applies to --build, not --train")
+    if not build and not train:
+        raise SystemExit("pass --build <id> or --train 26.5|27.0")
+    if train:
+        build, _path, also = resolve_train(train)
+        print(f"train {train} -> {build}")
+        if also:
+            print("also on disk, not selected: " + ", ".join(also))
+    if baseline_train:
+        baseline, _bpath, also_b = resolve_train(baseline_train)
+        print(f"baseline-train {baseline_train} -> {baseline}")
+        if also_b:
+            print("baseline also on disk, not selected: " + ", ".join(also_b))
     cur = load_target()
     chosen = resolve_named(build, path)
     doc = {
@@ -855,8 +921,18 @@ def main(argv=None):
     p_list.add_argument("--json", action="store_true", help="print the inventory as JSON")
 
     p_set = tsub.add_parser("set", help="persist target.json (build, path, optional baseline)")
-    p_set.add_argument("--build", required=True, help="build id directory under a caches root")
+    p_set.add_argument("--build", default=None, help="build id directory under a caches root")
+    p_set.add_argument(
+        "--train",
+        default=None,
+        help="26.5 or 27.0; picks the on-disk fleet tag for that train",
+    )
     p_set.add_argument("--baseline", default=None, help="second build for the default diff")
+    p_set.add_argument(
+        "--baseline-train",
+        default=None,
+        help="train label for the baseline (26.5 or 27.0)",
+    )
     p_set.add_argument("--path", default=None, help="explicit kernelcache file for --build")
     p_set.add_argument("--clear-baseline", action="store_true", help="drop a stored baseline")
 
@@ -905,7 +981,14 @@ def main(argv=None):
         if args.target_cmd == "list":
             cmd_target_list(args.json)
         elif args.target_cmd == "set":
-            cmd_target_set(args.build, args.baseline, args.path, args.clear_baseline)
+            cmd_target_set(
+                args.build,
+                args.baseline,
+                args.path,
+                args.clear_baseline,
+                args.train,
+                args.baseline_train,
+            )
         elif args.target_cmd == "show":
             cmd_target_show(args.json)
     elif args.cmd == "gate":

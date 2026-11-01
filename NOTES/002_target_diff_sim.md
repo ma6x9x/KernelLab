@@ -30,14 +30,14 @@ These are the build ids named by the judgment pack. `target list` prints
 them even when the file is not on disk yet. A tag with no pinned method
 table stays a refusal. Addresses are not copied from one machine to another.
 
-| Build | Role | Machine | Pinned method tables |
-| --- | --- | --- | --- |
-| 23F77 | hunt | iPhone13,2 | yes |
-| 23G71 | hunt iPad | iPad8,* | no — addresses do not transfer from 23F77 |
-| 21D50 | shape reference | iPhone 12 mini | no — not the hunt device |
-| 24A435 | diff input | iPhone18,2 | yes — do not paste onto 23F77 |
-| 24A437 | diff input | iPhone18,2 | no |
-| 24B119 | diff input | iPhone13,2 | no method table (VA band only) |
+| Build | Train | Role | Machine | Pinned method tables |
+| --- | --- | --- | --- | --- |
+| 23F77 | 26.5 | hunt | iPhone13,2 | yes |
+| 23G71 |  | hunt iPad | iPad8,* | no — addresses do not transfer from 23F77 |
+| 21D50 |  | shape reference | iPhone 12 mini | no — not the hunt device |
+| 24A435 | 27.0 | diff input | iPhone18,2 | yes — do not paste onto 23F77 |
+| 24A437 | 27.0 | diff input | iPhone18,2 | no |
+| 24B119 |  | diff input | iPhone13,2 | no method table (VA band only) |
 
 The pack's own `kernellab.py` still points `24B119` at a Mac home path.
 This tree does not. Discovery walks the caches roots above. The comparison
@@ -47,14 +47,10 @@ No new offset row was added.
 ## Apple-submit gate
 
 `kernellab gate` prints `APPLE-SUBMIT: closed`. Target, diff, and sim print
-the same line. Kernel read/write is not obtained, so `hasKread` stays false.
-Picking a cache, diffing two files, or dry-running `ident` does not open the
-gate. Do not submit to Apple from this lab.
-
-The pack's rule, kept here without a procedure: file only after a kread of a
-known kernel value has passed on a device you own and the validator has
-reproduced the issue on that same build. A surface diff never sets
-`hasKread`. This repository does not perform that check.
+the same line. JB-rig kernel testing is not a fileable finding. The gate
+stays closed until a complete hunt-SKU chain. Picking a cache, diffing two
+files, or dry-running `ident` does not open it. Do not submit to Apple from
+this lab. The day-one rig loop is `NOTES/003_jb_rig_day_one.md`.
 
 ## State
 

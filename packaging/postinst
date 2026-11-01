@@ -13,9 +13,9 @@ else
 fi
 echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
 echo "  kernellab target list"
-echo "  kernellab target set --build <BUILD> [--baseline <BUILD>]"
+echo "  kernellab target set --train 26.5 --baseline-train 27.0"
 echo "  kernellab diff"
-echo "  kernellab sim ident"
-echo "  kernellab gate   # APPLE-SUBMIT stays closed until kread/KRW"
+echo "  kernellab sim ident --feed /var/jb/var/kernellab/lab_bandit.json"
+echo "  kernellab gate   # APPLE-SUBMIT stays closed; JB-rig testing is not a fileable finding"
 echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
 exit 0

@@ -85,8 +85,24 @@ button:focus-visible, select:focus-visible {
 </head>
 <body>
 <h1>KERNELLAB CONSOLE</h1>
-<p class="dims">localhost only. Pick a saved kernelcache, diff it against the baseline, then dry-run the allowlisted ident stub. Unicorn is not EL1. A stock kernelcache is not the live jailbroken kernel. An EMU row is not a device receipt. Set target writes the same target.json the CLI uses. APPLE-SUBMIT stays closed: this console cannot open the kread/KRW gate.</p>
-<form id="lab" action="/api" method="get">
+<p class="dims">localhost only. Pick a saved kernelcache, diff it against the baseline, then dry-run the allowlisted ident stub. Unicorn is not EL1. A stock kernelcache is not the live jailbroken kernel. An EMU row is not a device receipt. Set target writes the same target.json the CLI uses. APPLE-SUBMIT stays closed. JB-rig kernel testing is not a fileable finding.</p>
+<form id="quick-26" action="/api" method="get" data-lab="1">
+  <fieldset>
+    <legend>26.5 and 27.0</legend>
+    <input type="hidden" name="train" value="26.5">
+    <input type="hidden" name="baseline_train" value="27.0">
+    <button type="submit" name="cmd" value="target-set-train">Set 26.5 host vs 27.0</button>
+  </fieldset>
+</form>
+<form id="quick-27" action="/api" method="get" data-lab="1">
+  <fieldset>
+    <legend>27.0 and 26.5</legend>
+    <input type="hidden" name="train" value="27.0">
+    <input type="hidden" name="baseline_train" value="26.5">
+    <button type="submit" name="cmd" value="target-set-train">Set 27.0 host vs 26.5</button>
+  </fieldset>
+</form>
+<form id="lab" action="/api" method="get" data-lab="1">
   <fieldset>
     <legend>Target</legend>
     <label for="build">Build</label>
@@ -121,24 +137,26 @@ button:focus-visible, select:focus-visible {
 </form>
 <pre id="out" aria-live="polite">[ ready — pick a command above ]</pre>
 <script>
-const form = document.getElementById('lab');
 const out = document.getElementById('out');
-form.addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const btn = ev.submitter;
-  const q = new URLSearchParams(new FormData(form, btn));
-  out.textContent = 'running…';
-  try {
-    const res = await fetch('/api?' + q.toString());
-    const body = await res.text();
-    out.textContent = body;
-    if (btn && btn.value === 'target-set' && !body.startsWith('(kernellab exit')) {
-      location.reload();
+for (const form of document.querySelectorAll('form[data-lab]')) {
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = ev.submitter;
+    const q = new URLSearchParams(new FormData(form, btn));
+    out.textContent = 'running…';
+    try {
+      const res = await fetch('/api?' + q.toString());
+      const body = await res.text();
+      out.textContent = body;
+      const setsTarget = btn && (btn.value === 'target-set' || btn.value === 'target-set-train');
+      if (setsTarget && !body.startsWith('(kernellab exit')) {
+        location.reload();
+      }
+    } catch (err) {
+      out.textContent = String(err);
     }
-  } catch (err) {
-    out.textContent = String(err);
-  }
-});
+  });
+}
 </script>
 </body>
 </html>
@@ -254,7 +272,10 @@ def render_page():
         role = ""
         for row in inv.get("fleet") or []:
             if row.get("build") == current_build:
-                role = f"\nrole: {row.get('role')} machine: {row.get('machine')}"
+                role = (
+                    f"\nrole: {row.get('role')} machine: {row.get('machine')} "
+                    f"train: {row.get('train') or '(none)'}"
+                )
                 break
         current = f"APPLE-SUBMIT: closed\ncurrent target: {current_build}\npath: {path}\nbaseline: {base}{role}"
     else:
@@ -313,6 +334,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if cmd == "gate":
             _code, text = kl_run(["gate"])
+            self._send(text)
+            return
+        if cmd == "target-set-train":
+            train = q1(query, "train")
+            baseline_train = q1(query, "baseline_train")
+            if not re.fullmatch(r"[0-9]{2}\.[0-9]", train or ""):
+                self._send("refusing train")
+                return
+            args = ["target", "set", "--train", train]
+            if baseline_train:
+                if not re.fullmatch(r"[0-9]{2}\.[0-9]", baseline_train):
+                    self._send("refusing baseline train")
+                    return
+                args += ["--baseline-train", baseline_train]
+            _code, text = kl_run(args)
             self._send(text)
             return
         if cmd == "target-set":

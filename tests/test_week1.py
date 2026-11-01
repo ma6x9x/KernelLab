@@ -62,9 +62,11 @@ class Week1Tests(unittest.TestCase):
     def test_gate_stays_closed(self):
         proc = run(["gate"], self.env, check=True)
         self.assertIn("APPLE-SUBMIT: closed", proc.stdout)
-        self.assertIn("hasKread stays false", proc.stdout)
+        self.assertIn("not a fileable finding", proc.stdout)
+        self.assertIn("hunt-SKU chain", proc.stdout)
         self.assertIn("Do not submit to Apple.", proc.stdout)
         self.assertNotIn("APPLE-SUBMIT: open", proc.stdout)
+        self.assertNotIn("hasKread stays false", proc.stdout)
 
     def test_fleet_roster_and_pins(self):
         self.write_kc("23F77")
@@ -72,10 +74,16 @@ class Week1Tests(unittest.TestCase):
         proc = run(["target", "list"], self.env, check=True)
         for tag in FLEET:
             self.assertIn(f"fleet {tag} ", proc.stdout)
-        self.assertIn("fleet 23F77 role=hunt machine=iPhone13,2 pinned-entry=yes", proc.stdout)
+        self.assertIn(
+            "fleet 23F77 role=hunt machine=iPhone13,2 train=26.5 pinned-entry=yes",
+            proc.stdout,
+        )
         self.assertIn("fleet 23G71 role=hunt-ipad", proc.stdout)
         self.assertIn("pinned-entry=no", proc.stdout)
-        self.assertIn("fleet 24A437 role=diff-input machine=iPhone18,2 pinned-entry=no", proc.stdout)
+        self.assertIn(
+            "fleet 24A437 role=diff-input machine=iPhone18,2 train=27.0 pinned-entry=no",
+            proc.stdout,
+        )
         self.assertIn("fleet 21D50 role=shape-reference", proc.stdout)
         self.assertIn("APPLE-SUBMIT: closed", proc.stdout)
         self.assertIn("cache 23F77 ", proc.stdout)
@@ -88,6 +96,10 @@ class Week1Tests(unittest.TestCase):
         self.assertEqual(inv["submit_gate"], "closed")
         by_build = {row["build"]: row for row in inv["fleet"]}
         self.assertEqual(set(by_build), set(FLEET))
+        self.assertEqual(by_build["23F77"]["train"], "26.5")
+        self.assertEqual(by_build["24A435"]["train"], "27.0")
+        self.assertEqual(by_build["24A437"]["train"], "27.0")
+        self.assertEqual(by_build["24B119"]["train"], "")
         self.assertTrue(by_build["23F77"]["pinned_entry"])
         self.assertFalse(by_build["24A437"]["pinned_entry"])
         self.assertFalse(by_build["23G71"]["pinned_entry"])
@@ -158,6 +170,56 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("machine unknown", text)
         self.assertIn("APPLE-SUBMIT: closed", text)
         self.assertNotIn("SURVIVED", text)
+
+    def test_train_preset_prefers_pinned_27(self):
+        self.write_kc("23F77")
+        self.write_kc("24A435")
+        self.write_kc("24A437")
+        proc = run(
+            ["target", "set", "--train", "26.5", "--baseline-train", "27.0"],
+            self.env,
+        )
+        text = proc.stdout + proc.stderr
+        self.assertEqual(proc.returncode, 0, text)
+        self.assertIn("train 26.5 -> 23F77", text)
+        self.assertIn("baseline-train 27.0 -> 24A435", text)
+        self.assertIn("not selected: 24A437", text)
+        self.assertIn("different machines", text)
+        self.assertIn("not a fileable finding", text)
+        doc = json.loads(self.state.read_text())
+        self.assertEqual(doc["build"], "23F77")
+        self.assertEqual(doc["baseline"], "24A435")
+
+        only = run(
+            ["target", "set", "--train", "27.0", "--baseline-train", "26.5"],
+            self.env,
+        )
+        swapped = only.stdout + only.stderr
+        self.assertEqual(only.returncode, 0, swapped)
+        self.assertIn("train 27.0 -> 24A435", swapped)
+        self.assertIn("baseline-train 26.5 -> 23F77", swapped)
+
+    def test_train_falls_back_to_unpinned_and_refuses_when_missing(self):
+        self.write_kc("24A437")
+        proc = run(["target", "set", "--train", "27.0"], self.env)
+        text = proc.stdout + proc.stderr
+        self.assertEqual(proc.returncode, 0, text)
+        self.assertIn("train 27.0 -> 24A437", text)
+        missing = run(
+            ["target", "set", "--train", "26.5", "--baseline-train", "27.0"],
+            self.env,
+        )
+        err = missing.stdout + missing.stderr
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("/var/jb/var/kernellab/caches/23F77/", err)
+        self.assertNotIn("SURVIVED", err)
+
+    def test_allowlist_is_ident_only(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("kernellab_mod", KL)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertEqual(set(mod.ALLOWLIST), {"ident"})
 
     def test_sim_ident_missing_pin_and_reject_unknown(self):
         path = self.write_kc("24A437", b"stub-bytes")
@@ -259,8 +321,11 @@ class Week1Tests(unittest.TestCase):
         status, page = get("/")
         self.assertEqual(status, 200)
         self.assertIn("Set target", page)
+        self.assertIn("Set 26.5 host vs 27.0", page)
+        self.assertIn("Set 27.0 host vs 26.5", page)
         self.assertIn("Sim stub", page)
         self.assertIn("Show Apple-submit gate", page)
+        self.assertIn("not a fileable finding", page)
         self.assertIn("APPLE-SUBMIT: closed", page)
         self.assertIn(">23F77<", page)
         self.assertIn('value="ident"', page)
@@ -269,6 +334,16 @@ class Week1Tests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("APPLE-SUBMIT: closed", body)
         self.assertNotIn("APPLE-SUBMIT: open", body)
+
+        status, body = get("/api?cmd=target-set-train&train=26.5&baseline_train=27.0")
+        self.assertEqual(status, 200)
+        self.assertIn("train 26.5 -> 23F77", body)
+        self.assertIn("baseline-train 27.0 -> 24A435", body)
+        self.assertIn("not a fileable finding", body)
+        self.assertNotIn("(kernellab exit", body)
+
+        status, body = get("/api?cmd=target-set-train&train=26.5;rm")
+        self.assertIn("refusing train", body)
 
         status, body = get("/api?cmd=target-set&build=23F77&baseline=24A435")
         self.assertEqual(status, 200)
@@ -293,16 +368,20 @@ class Week1Tests(unittest.TestCase):
     def test_deb_ships_tools_and_not_a_kernelcache(self):
         if shutil.which("dpkg-deb") is None:
             self.skipTest("dpkg-deb missing")
+        control = (ROOT / "packaging" / "control").read_text()
+        version = next(
+            line.split()[1] for line in control.splitlines() if line.startswith("Version:")
+        )
         out = self.root / "deb"
         out.mkdir()
         proc = subprocess.run(
-            ["sh", str(ROOT / "packaging" / "build.sh"), "0.2.0", str(out)],
+            ["sh", str(ROOT / "packaging" / "build.sh"), version, str(out)],
             capture_output=True,
             text=True,
             cwd=ROOT,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        deb = out / "kernellab_0.2.0_iphoneos-arm64.deb"
+        deb = out / f"kernellab_{version}_iphoneos-arm64.deb"
         self.assertTrue(deb.is_file())
         contents = subprocess.check_output(["dpkg-deb", "--contents", str(deb)], text=True)
         for needle in (
@@ -310,11 +389,12 @@ class Week1Tests(unittest.TestCase):
             "./usr/bin/klconsole",
             "./usr/bin/oracle_bridge",
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
+            "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
         ):
             self.assertIn(needle, contents)
         self.assertNotIn("kernelcache", contents.lower())
         info = subprocess.check_output(["dpkg-deb", "--info", str(deb)], text=True)
-        self.assertIn("Version: 0.2.0", info)
+        self.assertIn(f"Version: {version}", info)
         self.assertIn("postinst", info)
         control = self.root / "control"
         control.mkdir()
@@ -322,6 +402,8 @@ class Week1Tests(unittest.TestCase):
         postinst = (control / "postinst").read_text()
         self.assertIn("mkdir -p /var/jb/var/kernellab/caches", postinst)
         self.assertIn("kernellab sim ident", postinst)
+        self.assertIn("target set --train 26.5 --baseline-train 27.0", postinst)
+        self.assertIn("not a fileable finding", postinst)
         self.assertIn("APPLE-SUBMIT stays closed", postinst)
 
 

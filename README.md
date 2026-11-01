@@ -6,35 +6,40 @@ those files. It is not a jailbreak and it does not ship kernelcaches.
 
 The `.deb` is the lab home. Mind is a separate repo. Lumina / P007 is the hands.
 
-## Week-1 loop: pick → diff → sim
+## JB-rig day one: 26.5 host vs 27.0
+
+The full runbook is `NOTES/003_jb_rig_day_one.md`. Short form, after the deb
+is installed and the caches are dropped:
 
 ```
-kernellab target list
-kernellab target set --build 23F77 --baseline 24A435
-kernellab target show
+/var/jb/var/kernellab/caches/23F77/kernelcache…
+/var/jb/var/kernellab/caches/24A435/kernelcache…
+/var/jb/var/kernellab/caches/24A437/kernelcache…
+
+kernellab target set --train 26.5 --baseline-train 27.0
 kernellab diff
-kernellab sim ident
-klconsole
+kernellab sim ident --feed /var/jb/var/kernellab/lab_bandit.json
+oracle_bridge show /var/jb/var/kernellab/lab_bandit.json
+kernellab gate
 ```
 
-`diff` with no arguments compares the build in `target.json` to its baseline.
-If those builds are different machines (for example hunt `23F77` /
-`iPhone13,2` against `24A435` / `iPhone18,2`), the diff says so and does not
-treat the pair as one SKU. `23G71`, `21D50`, and `24A437` are fleet tags with
-no pinned method table: the lab lists them and refuses a positive claim.
-`24B119` shares the hunt machine in the pack's cache map and still has no
-method-table pin.
+`26.5` is `23F77` (iPhone13,2). `27.0` prefers `24A435` (iPhone18,2) when
+that file is present, and otherwise can select `24A437` on the same machine,
+which has no pinned method table. Those two trains are different machines.
+The diff says so. Swap with `--train 27.0 --baseline-train 26.5` when the
+rig under test is the 27.0 machine. `klconsole` has both buttons.
 
-`sim ident` is the only allowlisted stub: it prints whether the target file
-and the pinned table entry are present or missing, then dry-runs a userspace
-Unicorn snippet (`movz x0, #1; ret`). It does not load kernel bytes.
+`sim ident` is the only allowlisted stub. It prints present versus missing,
+then dry-runs a userspace Unicorn return. It does not load kernel bytes.
+The feed writes one map row and one emu row. Those weights stay map=0.3 and
+emu=0.5. They are not a device receipt and not a fileable finding.
 
-`kernellab gate` prints `APPLE-SUBMIT: closed`. Kernel read/write is not
-obtained. A pick, a diff, or a stub dry-run does not open that gate, and this
-lab does not submit to Apple.
+`kernellab gate` prints `APPLE-SUBMIT: closed`. JB-rig kernel testing is not
+a fileable finding. The gate stays closed until a complete hunt-SKU chain.
+This lab does not open it and does not submit to Apple.
 
-Optional: `kernellab sim ident --feed ledger.json` appends one map row and one
-emu row through `oracle_bridge`. Those weights stay map=0.3 and emu=0.5.
+Mind is separate. Pair it by the build id from `target show`:
+https://github.com/ma6x9x/Lum1na
 
 ## Where to put caches
 
@@ -69,8 +74,8 @@ that path.
 - A stock kernelcache is not the live jailbroken kernel.
 - An EMU or map ledger row is not a device receipt.
 - A build with no pinned table entry gets a refusal, not a filled-in table.
-- `APPLE-SUBMIT` stays closed until a kread has passed on a device you own.
-  This tool does not perform that check and cannot flip the gate.
+- `APPLE-SUBMIT` stays closed. JB-rig kernel testing is not a fileable
+  finding. This tool cannot open the gate.
 
 ## VA law
 
@@ -82,7 +87,7 @@ on: 23F77, 24A435, and 24B119. Other build ids refuse the VA read.
 - `kernellab.py` — the CLI.
 - `klconsole.py` — localhost console. `http://127.0.0.1:8737`.
 - `oracle_bridge.py` — offline LabBandit ledger mirror.
-- `NOTES/` — design notes. Start with `NOTES/002_target_diff_sim.md`.
+- `NOTES/` — design notes. Day one is `NOTES/003_jb_rig_day_one.md`.
 - `packaging/` — rootless Procursus `.deb`. See `DEBIAN-STYLE.md`.
 
 ## Console
