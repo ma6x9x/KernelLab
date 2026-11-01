@@ -1,13 +1,13 @@
 Package: com.ma6x9x.kernellab
 Name: Kernellab
-Version: 0.1.0
+Version: 0.2.1
 Architecture: iphoneos-arm64
-Description: userspace micro-lab for iOS/XNU kernel research - decode the
- UC method tables of captured kernelcaches, live survivor-diff rows across
- iOS builds, and run real kernel bytes (CVE-2026-43748 fill-writer) under
- Unicorn per-function emulation. Corellium-inspired, image-holder-native:
- the guest is a real extracted kernel, the host is an emulator, the oracle
- is byte comparison. No caches included (operator-supplied).
+Description: userspace micro-lab for iOS/XNU kernel research. Pick a saved
+ kernelcache (target.json), survivor-diff pinned method tables across two
+ builds, and dry-run the allowlisted userspace stub (sim ident).
+ 26.5 is 23F77 and 27.0 is 24A435 (24A437 is the unpinned 27.0-family
+ cache). The Apple-submit gate stays closed. JB-rig kernel testing is
+ not a fileable finding. No kernelcaches included (operator-supplied).
 Maintainer: kolby <noreply@github.com>
 Author: kolbymaxx
 Section: Research

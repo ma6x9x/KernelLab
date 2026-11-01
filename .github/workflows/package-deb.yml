@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths:
       - "kernellab.py"
+      - "klconsole.py"
+      - "oracle_bridge.py"
       - "packaging/**"
+      - "NOTES/**"
       - ".github/workflows/package-deb.yml"
   workflow_dispatch:
 
