@@ -18,9 +18,9 @@ Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
 The package contains the CLI, `klconsole`, `oracle_bridge`, and
 `KernelLab.app`. It does not contain a kernelcache. Confirm with
 `dpkg-deb --contents` before you copy one on. The icon opens the same
-localhost console as `klconsole`. See `NOTES/005_springboard_and_probes.md`
-for the probes workspace (new tests are files in that folder, not a new deb).
-Receipt honesty stays in `NOTES/004_lum1na_parity.md`.
+localhost console as `klconsole`. The probes workspace, the stage ladder,
+and receipt honesty are `NOTES/004_lum1na_parity.md`. New tests are files
+in `/var/jb/var/kernellab/probes/`, not a new deb.
 
 ## 2. Drop kernelcaches
 

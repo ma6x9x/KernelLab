@@ -19,8 +19,8 @@ Drop your own extracted kernelcaches under:
 /var/jb/var/kernellab/caches/<build>/kernelcache…
 ```
 
-Then the day-one loop below. Full steps are in `NOTES/003_jb_rig_day_one.md`
-and `NOTES/005_springboard_and_probes.md`. Receipt honesty stays in
+Then the day-one loop below. Day one is `NOTES/003_jb_rig_day_one.md`.
+Receipt honesty, the stage ladder, and the SpringBoard install are
 `NOTES/004_lum1na_parity.md`.
 
 New on-device tests are files you place in `/var/jb/var/kernellab/probes/`.
@@ -114,8 +114,7 @@ on: 23F77, 24A435, and 24B119. Other build ids refuse the VA read.
 - `klconsole.py` — localhost console. `http://127.0.0.1:8737`.
 - `oracle_bridge.py` — offline LabBandit ledger mirror.
 - `NOTES/` — design notes. Day one is `NOTES/003_jb_rig_day_one.md`.
-  Receipt honesty is `NOTES/004_lum1na_parity.md`. The SpringBoard app
-  and probes workspace are `NOTES/005_springboard_and_probes.md`.
+  The canonical note is `NOTES/004_lum1na_parity.md`.
 - `packaging/` — rootless Procursus `.deb`, including `KernelLab.app`. See `DEBIAN-STYLE.md`.
 - `/var/jb/var/kernellab/probes/` — operator-owned trees, created on install, not shipped.
 

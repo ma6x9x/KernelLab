@@ -76,3 +76,28 @@ extend that set without a byte-verified pin.
 
 Non-goals: no attack `.m` authorship, no probe codegen, and no copying
 `Exploit` bodies into KernelLab.
+
+## SpringBoard app and probes workspace
+
+Package `0.3.0` installs the CLI and a rootless app:
+
+```
+/var/jb/Applications/KernelLab.app
+```
+
+`CFBundleDisplayName` is `KernelLab`. `postinst` runs
+`uicache -p /var/jb/Applications/KernelLab.app`. The icon starts the
+existing `klconsole` on `127.0.0.1:8737` and opens that page. The
+executable is a packaging launcher. This repo does not build a Theos
+binary and does not add `.m` or `.h` sources.
+
+Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, drop extracted
+kernelcaches under `/var/jb/var/kernellab/caches/<build>/`, then the
+day-one loop in `NOTES/003_jb_rig_day_one.md`. The console header prints
+`BUILD 0.3.0`. Evidence classes stay the table above. `APPLE-SUBMIT`
+stays closed.
+
+`postinst` creates `/var/jb/var/kernellab/probes/` and leaves it empty.
+New tests are files the operator drops there, not a new `.deb`. The
+console lists names only. `packaging/probes/SLOT.md` and
+`operator_codegen_slot()` are an empty slot. They write nothing.
