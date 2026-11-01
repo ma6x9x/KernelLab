@@ -1,4 +1,4 @@
-# 004 — SpringBoard app and the probes workspace (0.3.0)
+# 005 — SpringBoard app and the probes workspace (0.3.0)
 
 The `.deb` still installs the CLI (`kernellab`, `klconsole`, `oracle_bridge`).
 It also installs a rootless SpringBoard app:
@@ -45,6 +45,7 @@ change that.
 The console header prints a BUILD banner and the evidence classes already
 used by this lab: `device` (weight 1.0, a device receipt), `emu` (weight
 0.5, not a device receipt), `map` (weight 0.3, not a device receipt).
+What counts as a complete port-work run stays in `NOTES/004_lum1na_parity.md`.
 
 ## Probes workspace
 

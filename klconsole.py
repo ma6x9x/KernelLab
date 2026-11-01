@@ -80,6 +80,38 @@ button:focus-visible, select:focus-visible {
   outline: 3px solid #8ab4ff;
   outline-offset: 2px;
 }
+.lab-top {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.4fr) minmax(14rem, 22rem);
+  gap: 1rem;
+  align-items: start;
+}
+.ladder-panel {
+  border: 1px solid #2c3a55;
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+}
+.ladder-panel h2 {
+  font-size: 1rem;
+  color: #8ab4ff;
+  margin: 0 0 0.35rem;
+}
+.ladder { margin: 0.4rem 0 0; padding-inline-start: 1.4rem; }
+.stage {
+  margin-block: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #2c3a55;
+  border-radius: 6px;
+  min-height: 48px;
+}
+.stage-name { font-weight: 700; }
+.stage-color { opacity: 0.85; margin-inline-start: 0.5rem; }
+.stage-green { color: #7dcea0; border-color: #1f6b45; }
+.stage-amber { color: #e6b35a; border-color: #8a6a2f; }
+.stage-red { color: #f07178; border-color: #8a3038; }
+@media (max-width: 720px) {
+  .lab-top { grid-template-columns: 1fr; }
+}
 #current { margin-block-start: 0.75rem; white-space: pre-wrap; }
 #out {
   white-space: pre-wrap;
@@ -98,6 +130,8 @@ button:focus-visible, select:focus-visible {
 <h1>KERNELLAB CONSOLE</h1>
 <p class="banner" id="build-banner">__BUILD_BANNER__</p>
 <p class="dims">__EVIDENCE__localhost only. Pick a saved kernelcache, diff it against the baseline, then dry-run the allowlisted ident stub. Unicorn is not EL1. A stock kernelcache is not the live jailbroken kernel. An EMU row is not a device receipt. A map row is not a device receipt. Set target writes the same target.json the CLI uses. APPLE-SUBMIT stays closed. JB-rig kernel testing is not a fileable finding.</p>
+<div class="lab-top">
+<div class="train-chips">
 <form id="quick-26" action="/api" method="get" data-lab="1">
   <fieldset>
     <legend>26.5 and 27.0</legend>
@@ -114,6 +148,13 @@ button:focus-visible, select:focus-visible {
     <button type="submit" name="cmd" value="target-set-train">Set 27.0 host vs 26.5</button>
   </fieldset>
 </form>
+</div>
+<section class="ladder-panel" aria-label="Stage ladder">
+  <h2>Stage ladder</h2>
+  <p class="dims">sandbox, leak, race, krw, sptm. Map and emu labels. Not a device receipt.</p>
+  __LADDER__
+</section>
+</div>
 <form id="lab" action="/api" method="get" data-lab="1">
   <fieldset>
     <legend>Target</legend>
@@ -179,6 +220,51 @@ for (const form of document.querySelectorAll('form[data-lab]')) {
 </body>
 </html>
 """
+
+
+def bridge_cmd():
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, "oracle_bridge.py"),
+        os.path.join(here, "oracle_bridge"),
+        "/var/jb/usr/share/kernellab/oracle_bridge.py",
+        "/usr/share/kernellab/oracle_bridge.py",
+        "/var/jb/usr/bin/oracle_bridge",
+        "/usr/bin/oracle_bridge",
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return [sys.executable, path]
+    return [sys.executable, os.path.join(here, "oracle_bridge.py")]
+
+
+def ladder_html():
+    try:
+        proc = subprocess.run(
+            bridge_cmd() + ["stages"],
+            capture_output=True, text=True, timeout=30,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        text = (proc.stdout or "") + (proc.stderr or "")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return "<p>%s</p>" % html.escape(str(exc))
+    items = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 3 or parts[0] != "stage" or not parts[2].startswith("color="):
+            continue
+        name = parts[1]
+        color = parts[2].split("=", 1)[1]
+        if color not in ("green", "amber", "red"):
+            color = "green"
+        items.append(
+            '<li class="stage stage-%s"><span class="stage-name">%s</span>'
+            '<span class="stage-color">%s</span></li>'
+            % (color, html.escape(name), html.escape(color))
+        )
+    if not items:
+        return "<p>stage ladder unavailable</p>"
+    return '<ol class="ladder">' + "".join(items) + "</ol>"
 
 
 def kernellab_cmd():
@@ -414,6 +500,7 @@ def render_page():
     page = page.replace("__TABLE_OPTIONS__", table_opts)
     page = page.replace("__STUB_OPTIONS__", stub_opts)
     page = page.replace("__CURRENT__", html.escape(current))
+    page = page.replace("__LADDER__", ladder_html())
     return page
 
 

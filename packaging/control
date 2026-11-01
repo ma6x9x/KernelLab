@@ -10,6 +10,7 @@ Description: userspace micro-lab for iOS/XNU kernel research. Pick a saved
  not a fileable finding. No kernelcaches included (operator-supplied).
  SpringBoard app KernelLab.app opens the localhost console. Operator
  probe trees belong in /var/jb/var/kernellab/probes and are not packaged.
+ Stage labels are sandbox, leak, race, krw, sptm (map and emu only).
 Maintainer: kolby <noreply@github.com>
 Author: kolbymaxx
 Section: Research

@@ -20,7 +20,8 @@ Drop your own extracted kernelcaches under:
 ```
 
 Then the day-one loop below. Full steps are in `NOTES/003_jb_rig_day_one.md`
-and `NOTES/004_springboard_and_probes.md`.
+and `NOTES/005_springboard_and_probes.md`. Receipt honesty stays in
+`NOTES/004_lum1na_parity.md`.
 
 New on-device tests are files you place in `/var/jb/var/kernellab/probes/`.
 They are not part of this package. Adding one does not require a new `.deb`
@@ -54,6 +55,10 @@ rig under test is the 27.0 machine. `klconsole` has both buttons.
 then dry-runs a userspace Unicorn return. It does not load kernel bytes.
 The feed writes one map row and one emu row. Those weights stay map=0.3 and
 emu=0.5. They are not a device receipt and not a fileable finding.
+`oracle_bridge stages` prints the ladder `sandbox → leak → race → krw → sptm`.
+`sim ident --feed … --stage leak` keeps the ident keys and adds
+`kernellab.stage.leak` as map and emu only. A stage name is not a device
+claim. The port checklist is `NOTES/004_lum1na_parity.md`.
 
 `kernellab gate` prints `APPLE-SUBMIT: closed`. JB-rig kernel testing is not
 a fileable finding. The gate stays closed until a complete hunt-SKU chain.
@@ -109,6 +114,8 @@ on: 23F77, 24A435, and 24B119. Other build ids refuse the VA read.
 - `klconsole.py` — localhost console. `http://127.0.0.1:8737`.
 - `oracle_bridge.py` — offline LabBandit ledger mirror.
 - `NOTES/` — design notes. Day one is `NOTES/003_jb_rig_day_one.md`.
+  Receipt honesty is `NOTES/004_lum1na_parity.md`. The SpringBoard app
+  and probes workspace are `NOTES/005_springboard_and_probes.md`.
 - `packaging/` — rootless Procursus `.deb`, including `KernelLab.app`. See `DEBIAN-STYLE.md`.
 - `/var/jb/var/kernellab/probes/` — operator-owned trees, created on install, not shipped.
 

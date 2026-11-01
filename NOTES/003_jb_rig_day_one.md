@@ -18,8 +18,9 @@ Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
 The package contains the CLI, `klconsole`, `oracle_bridge`, and
 `KernelLab.app`. It does not contain a kernelcache. Confirm with
 `dpkg-deb --contents` before you copy one on. The icon opens the same
-localhost console as `klconsole`. See `NOTES/004_springboard_and_probes.md`
+localhost console as `klconsole`. See `NOTES/005_springboard_and_probes.md`
 for the probes workspace (new tests are files in that folder, not a new deb).
+Receipt honesty stays in `NOTES/004_lum1na_parity.md`.
 
 ## 2. Drop kernelcaches
 
@@ -116,7 +117,9 @@ oracle_bridge show /var/jb/var/kernellab/lab_bandit.json
 That appends one `map` row and one `emu` row on domain `kernellab`
 (`kernellab.sim.ident.map`, `kernellab.sim.ident.emu`). The bridge weights
 are map 0.3 and emu 0.5. Neither row is a device receipt, and neither row
-is a fileable finding.
+is a fileable finding. Add `--stage sandbox|leak|race|krw|sptm` to also
+label `kernellab.stage.<name>` as map and emu. What counts as a complete
+port-work run is `NOTES/004_lum1na_parity.md`.
 
 ## 7. Mind
 

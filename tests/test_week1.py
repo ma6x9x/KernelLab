@@ -214,6 +214,62 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("/var/jb/var/kernellab/caches/23F77/", err)
         self.assertNotIn("SURVIVED", err)
 
+    def test_stage_ladder_is_map_emu_only(self):
+        proc = subprocess.run(
+            [sys.executable, str(BRIDGE), "stages"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        names = [
+            line.split()[1]
+            for line in proc.stdout.splitlines()
+            if line.startswith("stage ") and "color=" in line
+        ]
+        self.assertEqual(names, ["sandbox", "leak", "race", "krw", "sptm"])
+        self.assertIn("color=green", proc.stdout)
+        self.assertIn("stage race color=amber", proc.stdout)
+        self.assertIn("stage sptm color=red", proc.stdout)
+        self.assertIn("not a device receipt", proc.stdout)
+
+        self.write_kc("23F77")
+        run(["target", "set", "--build", "23F77"], self.env, check=True)
+        ledger = self.root / "lab_bandit.json"
+        fed = run(
+            ["sim", "ident", "--feed", str(ledger), "--stage", "krw"],
+            self.env,
+        )
+        text = fed.stdout + fed.stderr
+        self.assertEqual(fed.returncode, 0, text)
+        self.assertIn("kernellab.sim.ident.map", text)
+        self.assertIn("stage krw: map/emu label only", text)
+        arms = json.loads(ledger.read_text())["domains"]["kernellab"]["arms"]
+        self.assertIn("kernellab.sim.ident.map", arms)
+        self.assertIn("kernellab.sim.ident.emu", arms)
+        stage = arms["kernellab.stage.krw"]
+        self.assertTrue(any(key.startswith("map:") for key in stage))
+        self.assertTrue(any(key.startswith("emu:") for key in stage))
+        self.assertFalse(any(key.startswith("device:") for key in stage))
+
+        denied = subprocess.run(
+            [
+                sys.executable, str(BRIDGE), "feed",
+                "--json", str(ledger),
+                "--class", "device",
+                "--domain", "kernellab",
+                "--stage", "krw",
+                "--outcome", "ok",
+            ],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(denied.returncode, 0)
+        self.assertIn("not a device receipt", denied.stdout + denied.stderr)
+        again = json.loads(ledger.read_text())["domains"]["kernellab"]["arms"]["kernellab.stage.krw"]
+        self.assertFalse(any(key.startswith("device:") for key in again))
+
+        bad = run(["sim", "ident", "--stage", "nope"], self.env)
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertIn("unknown stage", bad.stdout + bad.stderr)
+
     def test_allowlist_is_ident_only(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("kernellab_mod", KL)
@@ -332,6 +388,12 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("Set target", page)
         self.assertIn("Set 26.5 host vs 27.0", page)
         self.assertIn("Set 27.0 host vs 26.5", page)
+        self.assertIn("stage-green", page)
+        self.assertIn("stage-amber", page)
+        self.assertIn("stage-red", page)
+        self.assertIn(">sandbox<", page)
+        self.assertIn(">race<", page)
+        self.assertIn(">sptm<", page)
         self.assertIn("Sim stub", page)
         self.assertIn("Show Apple-submit gate", page)
         self.assertIn("not a fileable finding", page)
@@ -457,7 +519,8 @@ class Week1Tests(unittest.TestCase):
             "./usr/bin/oracle_bridge",
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
             "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
-            "./usr/share/kernellab/NOTES/004_springboard_and_probes.md",
+            "./usr/share/kernellab/NOTES/004_lum1na_parity.md",
+            "./usr/share/kernellab/NOTES/005_springboard_and_probes.md",
             "./Applications/KernelLab.app/Info.plist",
             "./Applications/KernelLab.app/KernelLab",
             "./Applications/KernelLab.app/icon.png",

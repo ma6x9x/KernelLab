@@ -46,6 +46,36 @@ KNOWN_OUTCOMES = frozenset(
 
 EV_WEIGHTS = {"device": 1.0, "emu": 0.5, "map": 0.3}
 
+# Public ladder labels only. Order is the port checklist, not a result.
+# Colors: green sandbox/leak/krw, amber race, red sptm.
+# A stage arm never accepts class=device from this tool.
+STAGE_LADDER = (
+    ("sandbox", "green"),
+    ("leak", "green"),
+    ("race", "amber"),
+    ("krw", "green"),
+    ("sptm", "red"),
+)
+
+
+def stage_arm(name):
+    return "kernellab.stage.%s" % name
+
+
+def stage_names():
+    return tuple(name for name, _color in STAGE_LADDER)
+
+
+def is_stage_arm(arm):
+    return arm in {stage_arm(name) for name in stage_names()}
+
+
+def cmd_stages():
+    print("stage ladder: sandbox -> leak -> race -> krw -> sptm")
+    print("receipt: map and emu only. a stage label is not a device receipt.")
+    for name, color in STAGE_LADDER:
+        print("stage %s color=%s arm=%s" % (name, color, stage_arm(name)))
+
 
 def reward(outcome):
     if not outcome:
@@ -182,6 +212,11 @@ def cmd_show(path):
 def cmd_feed(path, cls, domain, arm, outcome, quiet=False):
     if cls not in ("device", "emu", "map"):
         raise SystemExit("error: --class must be device|emu|map (got %r)" % cls)
+    if is_stage_arm(arm) and cls == "device":
+        raise SystemExit(
+            "error: %s accepts map or emu only. a stage label is not a device receipt."
+            % arm
+        )
     if outcome not in KNOWN_OUTCOMES:
         raise SystemExit("error: unknown outcome %r — only reward-table "
                          "classes are accepted (%s)" % (outcome, " ".join(
@@ -246,12 +281,16 @@ def main(argv=None):
     p = sub.add_parser("show", help="print the LabBanditPlan-equivalent plan")
     p.add_argument("ledger", nargs="?", default="lab_bandit.json")
 
+    sub.add_parser("stages", help="print the stage ladder (map/emu labels only)")
+
     p = sub.add_parser("feed", help="append one class-weighted evidence row")
     p.add_argument("--json", required=True)
     p.add_argument("--class", dest="ecls", required=True,
                    choices=["device", "emu", "map"])
     p.add_argument("--domain", required=True)
-    p.add_argument("--arm", required=True)
+    p.add_argument("--arm", default=None)
+    p.add_argument("--stage", choices=list(stage_names()), default=None,
+                   help="ladder label; writes kernellab.stage.<name> as map or emu only")
     p.add_argument("--outcome", required=True)
 
     p = sub.add_parser("demo", help="copy a real ledger and feed demo rows")
@@ -260,8 +299,18 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.cmd == "show":
         cmd_show(a.ledger)
+    elif a.cmd == "stages":
+        cmd_stages()
     elif a.cmd == "feed":
-        cmd_feed(a.json, a.ecls, a.domain, a.arm, a.outcome)
+        arm = a.arm
+        if a.stage:
+            expected = stage_arm(a.stage)
+            if arm and arm != expected:
+                raise SystemExit("error: --arm does not match --stage %s" % expected)
+            arm = expected
+        if not arm:
+            raise SystemExit("error: --arm is required (or pass --stage)")
+        cmd_feed(a.json, a.ecls, a.domain, arm, a.outcome)
     elif a.cmd == "demo":
         cmd_demo(a.ledger)
 
