@@ -792,10 +792,28 @@ def load_bridge():
     raise SystemExit("oracle_bridge.py not found — cannot --feed")
 
 
-def _maybe_feed(ledger, file_present, emu_outcome):
+def _check_stage(stage):
+    if not stage:
+        return None
+    bridge = load_bridge()
+    known = bridge.stage_names()
+    if stage not in known:
+        raise SystemExit(
+            "unknown stage %r. ladder: %s" % (stage, " ".join(known))
+        )
+    return bridge
+
+
+def _maybe_feed(ledger, file_present, emu_outcome, stage=None):
+    if not ledger and not stage:
+        return
+    bridge = _check_stage(stage) or (load_bridge() if ledger else None)
+    if stage:
+        print(
+            "stage %s: map/emu label only — not a device receipt" % stage
+        )
     if not ledger:
         return
-    bridge = load_bridge()
     if not os.path.exists(ledger):
         parent = os.path.dirname(os.path.abspath(ledger)) or "."
         os.makedirs(parent, exist_ok=True)
@@ -809,6 +827,11 @@ def _maybe_feed(ledger, file_present, emu_outcome):
     bridge.cmd_feed(ledger, "map", "kernellab", "kernellab.sim.ident.map", map_outcome)
     if emu_outcome:
         bridge.cmd_feed(ledger, "emu", "kernellab", "kernellab.sim.ident.emu", emu_outcome)
+    if stage:
+        arm = bridge.stage_arm(stage)
+        bridge.cmd_feed(ledger, "map", "kernellab", arm, map_outcome)
+        if emu_outcome:
+            bridge.cmd_feed(ledger, "emu", "kernellab", arm, emu_outcome)
 
 
 def run_ident_stub():
@@ -833,7 +856,8 @@ def run_ident_stub():
     return "nofire"
 
 
-def cmd_sim(stub_id, feed):
+def cmd_sim(stub_id, feed, stage=None):
+    _check_stage(stage)
     if stub_id not in ALLOWLIST:
         known = " ".join(sorted(ALLOWLIST))
         raise SystemExit(f"sim: {stub_id!r} is not allowlisted. allowlist: {known}")
@@ -858,7 +882,7 @@ def cmd_sim(stub_id, feed):
             "refusing positive claim — no target.json "
             "(kernellab target set --build <id>)"
         )
-        _maybe_feed(feed, file_present=False, emu_outcome=None)
+        _maybe_feed(feed, file_present=False, emu_outcome=None, stage=stage)
         return
     print(f"target-build: {build}")
     print(f"target-path: {path}")
@@ -882,7 +906,7 @@ def cmd_sim(stub_id, feed):
     else:
         print("baseline-build: (none)")
     emu_outcome = run_ident_stub()
-    _maybe_feed(feed, file_present=present, emu_outcome=emu_outcome)
+    _maybe_feed(feed, file_present=present, emu_outcome=emu_outcome, stage=stage)
 
 
 def _active_build(explicit, fallback):
@@ -952,6 +976,11 @@ def main(argv=None):
         default=None,
         help="append one map row and one emu row through oracle_bridge",
     )
+    p_sim.add_argument(
+        "--stage",
+        default=None,
+        help="ladder label for an extra map/emu row: sandbox, leak, race, krw, sptm",
+    )
 
     args = ap.parse_args(argv)
     if args.cmd == "tables":
@@ -994,7 +1023,7 @@ def main(argv=None):
     elif args.cmd == "gate":
         print_gate()
     elif args.cmd == "sim":
-        cmd_sim(args.id, args.feed)
+        cmd_sim(args.id, args.feed, args.stage)
 
 
 if __name__ == "__main__":

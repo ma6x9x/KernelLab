@@ -33,6 +33,10 @@ rig under test is the 27.0 machine. `klconsole` has both buttons.
 then dry-runs a userspace Unicorn return. It does not load kernel bytes.
 The feed writes one map row and one emu row. Those weights stay map=0.3 and
 emu=0.5. They are not a device receipt and not a fileable finding.
+`oracle_bridge stages` prints the ladder `sandbox → leak → race → krw → sptm`.
+`sim ident --feed … --stage leak` keeps the ident keys and adds
+`kernellab.stage.leak` as map and emu only. A stage name is not a device
+claim. The port checklist is `NOTES/004_lab_receipt_checklist.md`.
 
 `kernellab gate` prints `APPLE-SUBMIT: closed`. JB-rig kernel testing is not
 a fileable finding. The gate stays closed until a complete hunt-SKU chain.
