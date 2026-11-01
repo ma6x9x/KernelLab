@@ -452,7 +452,7 @@ class Week1Tests(unittest.TestCase):
             "./usr/bin/oracle_bridge",
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
             "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
-            "./usr/share/kernellab/NOTES/004_lab_receipt_checklist.md",
+            "./usr/share/kernellab/NOTES/004_lum1na_parity.md",
         ):
             self.assertIn(needle, contents)
         self.assertNotIn("kernelcache", contents.lower())

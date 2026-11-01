@@ -114,7 +114,7 @@ That appends one `map` row and one `emu` row on domain `kernellab`
 are map 0.3 and emu 0.5. Neither row is a device receipt, and neither row
 is a fileable finding. Add `--stage sandbox|leak|race|krw|sptm` to also
 label `kernellab.stage.<name>` as map and emu. What counts as a complete
-port-work run is `NOTES/004_lab_receipt_checklist.md`.
+port-work run is `NOTES/004_lum1na_parity.md`.
 
 ## 7. Mind
 

@@ -1,4 +1,4 @@
-# 004 — lab receipt checklist
+# 004 — Lum1na / Lum1na-Debug parity (lab discipline, not attack bodies)
 
 Use this when a JB-rig run should count as complete for Lum1na port work.
 Fill every line. A blank line means the run is not complete.
@@ -67,6 +67,12 @@ name from the ladder above.
 
 Pair Lum1na Mind by the build id from `kernellab target show` (`26.5` /
 `23F77`, `27.0` / `24A435`). Mind is not in this deb.
+
+## VA law
+
+`fileoff = (va & 0xFFFFFFF) − 0x7004000` on the builds that law was verified:
+23F77, 24A435, and 24B119. Any other build id refuses the VA read. Do not
+extend that set without a byte-verified pin.
 
 Non-goals: no attack `.m` authorship, no probe codegen, and no copying
 `Exploit` bodies into KernelLab.

@@ -36,7 +36,7 @@ emu=0.5. They are not a device receipt and not a fileable finding.
 `oracle_bridge stages` prints the ladder `sandbox → leak → race → krw → sptm`.
 `sim ident --feed … --stage leak` keeps the ident keys and adds
 `kernellab.stage.leak` as map and emu only. A stage name is not a device
-claim. The port checklist is `NOTES/004_lab_receipt_checklist.md`.
+claim. The port checklist is `NOTES/004_lum1na_parity.md`.
 
 `kernellab gate` prints `APPLE-SUBMIT: closed`. JB-rig kernel testing is not
 a fileable finding. The gate stays closed until a complete hunt-SKU chain.
