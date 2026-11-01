@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlparse
 
 PORT = int(os.environ.get("KL_PORT", "8737"))
 # Keep in lockstep with packaging/control Version.
-CONSOLE_BUILD = "0.3.1"
+CONSOLE_BUILD = "0.3.2"
 BUILD_RE = re.compile(r"^[0-9]{2}[A-Z][0-9]{2,4}[a-z]?$")
 TABLE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 STUB_RE = re.compile(r"^[a-z][a-z0-9._-]{0,31}$")

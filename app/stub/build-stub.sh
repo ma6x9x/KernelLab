@@ -12,12 +12,22 @@ trap cleanup EXIT
 
 LLD="${LD64:-}"
 if [ -z "$LLD" ]; then
-  for c in ld64.lld /usr/bin/ld64.lld /usr/lib/llvm-18/bin/ld64.lld; do
-    if command -v "$c" >/dev/null 2>&1; then
+  for c in ld64.lld ld64.lld-18 ld64.lld-19 ld64.lld-20 ld64.lld-21 \
+    /usr/bin/ld64.lld /usr/bin/ld64.lld-18 \
+    /usr/lib/llvm-18/bin/ld64.lld /usr/lib/llvm-19/bin/ld64.lld \
+    /usr/lib/llvm-20/bin/ld64.lld /usr/lib/llvm-21/bin/ld64.lld; do
+    if [ -x "$c" ]; then
       LLD="$c"
       break
     fi
+    if command -v "$c" >/dev/null 2>&1; then
+      LLD=$(command -v "$c")
+      break
+    fi
   done
+fi
+if [ -z "$LLD" ]; then
+  LLD=$(find /usr/lib /usr/bin -name 'ld64.lld*' -type f -executable 2>/dev/null | head -n 1 || true)
 fi
 if [ -z "$LLD" ]; then
   echo "ld64.lld not found. Set LD64 to the Mach-O linker." >&2
@@ -25,12 +35,21 @@ if [ -z "$LLD" ]; then
 fi
 LDID="${LDID:-}"
 if [ -z "$LDID" ]; then
-  for c in ldid /tmp/ldid/ldid; do
-    if [ -x "$c" ] || command -v "$c" >/dev/null 2>&1; then
+  for c in ldid /tmp/ldid/ldid /usr/bin/ldid /var/jb/usr/bin/ldid; do
+    if [ -x "$c" ]; then
       LDID="$c"
       break
     fi
+    if command -v "$c" >/dev/null 2>&1; then
+      LDID=$(command -v "$c")
+      break
+    fi
   done
+fi
+if [ -z "$LDID" ]; then
+  echo "ldid not found. The SpringBoard binary must be signed with entitlements." >&2
+  echo "Build https://github.com/ProcursusTeam/ldid and set LDID." >&2
+  exit 1
 fi
 
 clang -target arm64-apple-ios15.0 -ffreestanding -fno-stack-protector -fno-builtin \
@@ -65,6 +84,10 @@ for name in undef:
         objc.append(name)
     else:
         system.append(name)
+# ld64.lld references this from lazy binding. It is not in main.o.
+# The empty body is link-only; dyld binds the real libSystem copy.
+if "_dyld_stub_binder" not in system:
+    system.append("_dyld_stub_binder")
 
 def emit(path, names):
     lines = ["/* link-time stubs. runtime binds the real device libraries. */"]
@@ -72,6 +95,10 @@ def emit(path, names):
         c_name = name[1:]
         if c_name == "environ":
             lines.append("char **environ;")
+        elif c_name == "dyld_stub_binder":
+            # ld64.lld's lazy-bind stub looks up this symbol without the
+            # usual Mach-O underscore prefix.
+            lines.append('__asm__(".globl dyld_stub_binder\\ndyld_stub_binder:\\nret\\n");')
         else:
             lines.append(f"void {c_name}() {{}}")
     path.write_text("\n".join(lines) + "\n")
@@ -93,16 +120,28 @@ clang -target arm64-apple-ios15.0 -ffreestanding -fno-stack-protector -c "$WORK/
 "$LLD" -dylib -arch arm64 -platform_version ios 15.0.0 15.0.0 \
   -install_name /System/Library/Frameworks/UIKit.framework/UIKit -o "$WORK/UIKit" "$WORK/UIKit.o"
 
-"$LLD" -arch arm64 -platform_version ios 15.0.0 15.0.0 \
-  -o "$WORK/KernelLab" "$WORK/main.o" \
-  "$WORK/libSystem.B.dylib" "$WORK/libobjc.A.dylib" "$WORK/UIKit" \
-  -adhoc_codesign
-
-if [ -n "$LDID" ]; then
-  "$LDID" -Cadhoc -S"$ROOT/app/entitlements.plist" "$WORK/KernelLab"
-else
-  echo "ldid not found; left the linker ad-hoc signature in place" >&2
+# Classic dyld opcodes load on every iOS arm64 dyld. Chained fixups from
+# ld64.lld are DYLD_CHAINED_PTR_64 (macOS absolute targets). Prefer opcodes.
+# If that link fails, chained fixups are still checked for command types.
+link_kernel_lab() {
+  mode=$1
+  "$LLD" -arch arm64 -platform_version ios 15.0.0 15.0.0 \
+    "-${mode}" \
+    -o "$WORK/KernelLab" "$WORK/main.o" \
+    "$WORK/libSystem.B.dylib" "$WORK/libobjc.A.dylib" "$WORK/UIKit" \
+    -adhoc_codesign
+}
+rm -f "$WORK/KernelLab"
+if ! link_kernel_lab no_fixup_chains; then
+  rm -f "$WORK/KernelLab"
+  echo "classic dyld opcodes failed; retrying with chained fixups" >&2
+  link_kernel_lab fixup_chains
 fi
+
+# Repair LC_LOAD_DYLINKER / LC_LOAD_DYLIB swaps before ldid hashes the file.
+python3 "$ROOT/packaging/check-macho.py" --normalize "$WORK/KernelLab"
+"$LDID" -Cadhoc -Hsha256 -S"$ROOT/app/entitlements.plist" "$WORK/KernelLab"
+python3 "$ROOT/packaging/check-macho.py" "$WORK/KernelLab"
 
 DEST="$ROOT/app/prebuilt/KernelLab.app"
 rm -rf "$DEST"

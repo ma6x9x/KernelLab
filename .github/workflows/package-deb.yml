@@ -31,9 +31,23 @@ jobs:
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "packaging kernellab $V"
 
+      - name: Install Mach-O toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld make g++ pkg-config libplist-dev libssl-dev
+
+      - name: Build ldid
+        run: |
+          git clone --depth 1 https://github.com/ProcursusTeam/ldid.git /tmp/ldid
+          make -C /tmp/ldid -j"$(nproc)"
+
+      - name: Rebuild SpringBoard Mach-O
+        run: |
+          chmod +x app/stub/build-stub.sh packaging/build.sh
+          LDID=/tmp/ldid/ldid ./app/stub/build-stub.sh
+
       - name: Build rootless deb
         run: |
-          chmod +x packaging/build.sh
           ./packaging/build.sh "${{ steps.ver.outputs.version }}" build
 
       - name: Verify deb
@@ -57,6 +71,11 @@ jobs:
           dpkg-deb -x "$DEB" /tmp/kernellab-deb-root
           file /tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab | grep -F 'Mach-O'
           python3 -c 'import pathlib,sys; b=pathlib.Path("/tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab").read_bytes(); sys.exit(0 if list(b[:4])==[0xCF,0xFA,0xED,0xFE] and not b.startswith(b"#!") else 1)'
+          python3 packaging/check-macho.py /tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab
+          dpkg-deb -e "$DEB" /tmp/kernellab-deb-control
+          grep -F '/var/jb/Applications/KernelLab.app' /tmp/kernellab-deb-control/postinst
+          grep -F '/Applications/KernelLab.app' /tmp/kernellab-deb-control/postinst
+          grep -F '"$UICACHE" -a' /tmp/kernellab-deb-control/postinst
 
       - name: Unit tests
         run: python3 -m unittest tests.test_week1 tests.test_app_shell
@@ -64,10 +83,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernellab-deb
+          name: kernellab_${{ steps.ver.outputs.version }}_iphoneos-arm64
           path: build/kernellab_${{ steps.ver.outputs.version }}_iphoneos-arm64.deb
           if-no-files-found: error
 
       - name: Summary
         run: |
-          echo "kernellab deb ships an arm64 Mach-O KernelLab.app (rootless Procursus). postinst uicaches only when that executable is Mach-O." >> "$GITHUB_STEP_SUMMARY"
+          echo "kernellab deb ships an arm64 MH_EXECUTE KernelLab.app. postinst uicaches the bundle that exists on rootless (/var/jb/Applications or /Applications) and falls back to uicache -a." >> "$GITHUB_STEP_SUMMARY"

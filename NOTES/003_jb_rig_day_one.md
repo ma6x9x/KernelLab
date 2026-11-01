@@ -11,10 +11,12 @@ This repository does not submit to Apple and does not describe that chain.
 
 ## 1. Install
 
-Install `kernellab_0.3.1_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
+Install `kernellab_0.3.2_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
 `postinst` creates `/var/jb/var/kernellab/caches` and
 `/var/jb/var/kernellab/probes`, registers the SpringBoard icon with
-`uicache -p /var/jb/Applications/KernelLab.app`, and prints this loop.
+`uicache -p` on `/var/jb/Applications/KernelLab.app` or
+`/Applications/KernelLab.app` (whichever exists), and prints this loop.
+Respring if the icon is still missing.
 The package contains the CLI, `klconsole`, `oracle_bridge`, and
 `KernelLab.app`. It does not contain a kernelcache. Confirm with
 `dpkg-deb --contents` before you copy one on. The icon opens the same

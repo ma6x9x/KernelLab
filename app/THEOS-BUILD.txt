@@ -2,12 +2,14 @@ KernelLab.app in this deb is a signed arm64 Mach-O (soft UI).
 
 Ubuntu CI has no Theos and no iOS SDK, and no Mac worker was connected,
 so the package ships app/prebuilt/KernelLab.app. SpringBoard registers
-that executable. postinst runs:
+that executable. postinst puts /var/jb/usr/bin on PATH, finds the
+Mach-O at /var/jb/Applications/KernelLab.app or /Applications/KernelLab.app,
+and runs:
 
-  uicache -p /var/jb/Applications/KernelLab.app
+  uicache -p <that bundle> -s
 
-only when file(1) or the MH magic says KernelLab is Mach-O. A /bin/sh
-launcher is skipped. Respring if the icon is still missing.
+A registration failure falls back to `uicache -a`. A /bin/sh launcher is
+skipped. Respring if the icon is still missing.
 
 The Console tab posix_spawns /var/jb/usr/bin/kernellab and shows stdout.
 The Probes tab lists .m/.h filenames under /var/jb/var/kernellab/probes.

@@ -1,6 +1,7 @@
 """Guards for the SpringBoard Mach-O: layout, no probe bodies, no shell launcher."""
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,9 +25,9 @@ BANNED = (
 class AppShellTests(unittest.TestCase):
     def test_version_and_identity(self):
         control = (ROOT / "packaging" / "control").read_text()
-        self.assertIn("Version: 0.3.1", control)
+        self.assertIn("Version: 0.3.2", control)
         plist = (APP / "Info.plist").read_text()
-        self.assertIn("<string>0.3.1</string>", plist)
+        self.assertIn("<string>0.3.2</string>", plist)
         self.assertIn("com.ma6x9x.kernellab", plist)
         self.assertIn("<string>KernelLab</string>", plist)
 
@@ -47,6 +48,13 @@ class AppShellTests(unittest.TestCase):
         described = subprocess.check_output(["file", "-b", str(binary)], text=True)
         self.assertIn("Mach-O", described)
         self.assertIn("arm64", described)
+        checked = subprocess.run(
+            [sys.executable, str(ROOT / "packaging" / "check-macho.py"), str(binary)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertIn("libSystem.B.dylib", blob.decode("latin1"))
         ok = subprocess.run(
             ["sh", str(ROOT / "packaging" / "postinst"), "--is-macho", str(binary)],
         )
