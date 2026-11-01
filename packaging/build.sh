@@ -106,6 +106,9 @@ for script in postinst postrm prerm; do
 done
 
 mkdir -p "$OUTDIR"
+# Checkout keeps older kernellab_*.deb files (0.3.0 next to 0.3.1).
+# dpkg-deb refuses a glob that expands to more than one package.
+rm -f "$OUTDIR"/kernellab_*.deb
 dpkg-deb --root-owner-group --build "$STAGE" "$OUTDIR/kernellab_${VER}_iphoneos-arm64.deb"
 echo "built: $OUTDIR/kernellab_${VER}_iphoneos-arm64.deb"
 dpkg-deb --info "$OUTDIR/kernellab_${VER}_iphoneos-arm64.deb" | head -20

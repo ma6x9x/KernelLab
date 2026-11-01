@@ -503,6 +503,8 @@ class Week1Tests(unittest.TestCase):
         )
         out = self.root / "deb"
         out.mkdir()
+        stale = out / "kernellab_0.3.0_iphoneos-arm64.deb"
+        stale.write_bytes(b"not-a-deb")
         proc = subprocess.run(
             ["sh", str(ROOT / "packaging" / "build.sh"), version, str(out)],
             capture_output=True,
@@ -512,6 +514,11 @@ class Week1Tests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         deb = out / f"kernellab_{version}_iphoneos-arm64.deb"
         self.assertTrue(deb.is_file())
+        self.assertFalse(stale.exists())
+        self.assertEqual(
+            sorted(path.name for path in out.glob("*.deb")),
+            [deb.name],
+        )
         contents = subprocess.check_output(["dpkg-deb", "--contents", str(deb)], text=True)
         for needle in (
             "./usr/bin/kernellab",
