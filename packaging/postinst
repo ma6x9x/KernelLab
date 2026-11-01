@@ -6,10 +6,24 @@ chmod 755 /var/jb/usr/bin/kernellab /var/jb/usr/bin/klconsole /var/jb/usr/bin/or
   || true
 if [ -d /var/jb ]; then
   mkdir -p /var/jb/var/kernellab/caches
+  mkdir -p /var/jb/var/kernellab/probes
   HINTDIR=/var/jb/var/kernellab/caches
+  PROBES=/var/jb/var/kernellab/probes
 else
   mkdir -p /var/kernellab/caches 2>/dev/null || true
+  mkdir -p /var/kernellab/probes 2>/dev/null || true
   HINTDIR=/var/kernellab/caches
+  PROBES=/var/kernellab/probes
+fi
+if [ -d /var/jb/Applications/KernelLab.app ]; then
+  chmod 755 /var/jb/Applications/KernelLab.app/KernelLab 2>/dev/null || true
+  if [ -x /var/jb/usr/bin/uicache ]; then
+    /var/jb/usr/bin/uicache -p /var/jb/Applications/KernelLab.app || true
+  elif command -v uicache >/dev/null 2>&1; then
+    uicache -p /var/jb/Applications/KernelLab.app || true
+  else
+    echo "uicache not found; run: uicache -p /var/jb/Applications/KernelLab.app"
+  fi
 fi
 echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
 echo "  kernellab target list"
@@ -19,4 +33,6 @@ echo "  kernellab sim ident --feed /var/jb/var/kernellab/lab_bandit.json"
 echo "  kernellab gate   # APPLE-SUBMIT stays closed; JB-rig testing is not a fileable finding"
 echo "  oracle_bridge stages   # sandbox -> leak -> race -> krw -> sptm (map/emu labels)"
 echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
+echo "SpringBoard: KernelLab.app  (uicache -p /var/jb/Applications/KernelLab.app)"
+echo "probes workspace: ${PROBES}/  — drop your own trees here; new tests are files, not a new .deb."
 exit 0

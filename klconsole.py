@@ -18,6 +18,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 PORT = int(os.environ.get("KL_PORT", "8737"))
+# Keep in lockstep with packaging/control Version.
+CONSOLE_BUILD = "0.3.0"
 BUILD_RE = re.compile(r"^[0-9]{2}[A-Z][0-9]{2,4}[a-z]?$")
 TABLE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 STUB_RE = re.compile(r"^[a-z][a-z0-9._-]{0,31}$")
@@ -41,6 +43,15 @@ h1 {
   color: #8ab4ff;
   letter-spacing: 0.08em;
   margin: 0 0 0.5rem;
+}
+.banner {
+  color: #d7e6ff;
+  background: #131a28;
+  border: 1px solid #2c3a55;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.75rem;
 }
 .dims { opacity: 0.7; font-size: 0.85rem; margin-block-end: 1rem; max-width: 52rem; }
 fieldset {
@@ -117,7 +128,8 @@ button:focus-visible, select:focus-visible {
 </head>
 <body>
 <h1>KERNELLAB CONSOLE</h1>
-<p class="dims">localhost only. Pick a saved kernelcache, diff it against the baseline, then dry-run the allowlisted ident stub. Unicorn is not EL1. A stock kernelcache is not the live jailbroken kernel. An EMU row is not a device receipt. Set target writes the same target.json the CLI uses. APPLE-SUBMIT stays closed. JB-rig kernel testing is not a fileable finding.</p>
+<p class="banner" id="build-banner">__BUILD_BANNER__</p>
+<p class="dims">__EVIDENCE__localhost only. Pick a saved kernelcache, diff it against the baseline, then dry-run the allowlisted ident stub. Unicorn is not EL1. A stock kernelcache is not the live jailbroken kernel. An EMU row is not a device receipt. A map row is not a device receipt. Set target writes the same target.json the CLI uses. APPLE-SUBMIT stays closed. JB-rig kernel testing is not a fileable finding.</p>
 <div class="lab-top">
 <div class="train-chips">
 <form id="quick-26" action="/api" method="get" data-lab="1">
@@ -174,6 +186,12 @@ button:focus-visible, select:focus-visible {
     <button type="submit" name="cmd" value="tables">Decode tables</button>
     <button type="submit" name="cmd" value="diff-pair">Diff selected pair</button>
     <button type="submit" name="cmd" value="emu">Emu fill-writer (pinned entry only)</button>
+  </fieldset>
+  <fieldset>
+    <legend>Probes workspace</legend>
+    <p class="dims">List stub. New tests are files in this folder, not a new .deb. Names only. A later on-device tab can own this list. Codegen slot is empty.</p>
+    <pre id="probes">__PROBES__</pre>
+    <button type="submit" name="cmd" value="probes-list">List probes</button>
   </fieldset>
 </form>
 <pre id="out" aria-live="polite">[ ready — pick a command above ]</pre>
@@ -293,6 +311,98 @@ def q1(query, key, default=""):
     return vals[0] if vals else default
 
 
+def console_build():
+    env = os.environ.get("KERNELLAB_BUILD", "")
+    if env and re.fullmatch(r"[0-9A-Za-z._-]{1,32}", env):
+        return env
+    return CONSOLE_BUILD
+
+
+def probes_root():
+    """On-device operator workspace. Override with KERNELLAB_PROBES for tests."""
+    env = os.environ.get("KERNELLAB_PROBES")
+    if env:
+        return env
+    if os.path.isdir("/var/jb"):
+        return "/var/jb/var/kernellab/probes"
+    return "/var/jb/var/kernellab/probes"
+
+
+def operator_codegen_slot(root):
+    """Empty extension point for a future operator-owned codegen tool.
+
+    This package does not generate, compile, or copy probe sources.
+    The slot writes nothing and returns an empty record.
+    """
+    return {
+        "status": "empty",
+        "generates": False,
+        "compiles": False,
+        "copies_sources": False,
+        "path": root,
+    }
+
+
+def list_probe_entries(root, limit=200):
+    """Names under the probes workspace. Bodies are not read."""
+    root = os.path.abspath(root)
+    if os.path.islink(root) or not os.path.isdir(root):
+        return []
+    found = []
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        rel_dir = os.path.relpath(dirpath, root)
+        for name in list(dirnames):
+            if name.startswith("."):
+                dirnames.remove(name)
+                continue
+            path = os.path.join(dirpath, name)
+            rel = name if rel_dir == "." else os.path.join(rel_dir, name)
+            rel = rel.replace(os.sep, "/")
+            if os.path.islink(path):
+                found.append(rel + " (symlink, not followed)")
+                dirnames.remove(name)
+            else:
+                found.append(rel + "/")
+            if len(found) >= limit:
+                return found
+        for name in filenames:
+            if name.startswith("."):
+                continue
+            path = os.path.join(dirpath, name)
+            rel = name if rel_dir == "." else os.path.join(rel_dir, name)
+            rel = rel.replace(os.sep, "/")
+            if os.path.islink(path):
+                found.append(rel + " (symlink, not followed)")
+            else:
+                found.append(rel)
+            if len(found) >= limit:
+                return found
+    found.sort()
+    return found
+
+
+def format_probes_listing():
+    root = probes_root()
+    slot = operator_codegen_slot(root)
+    lines = [
+        f"probes: {root}",
+        "new tests are files in this folder, not a new .deb",
+        "codegen: empty (not implemented; an operator-owned tool may write here later)",
+        f"slot: {slot['status']}",
+    ]
+    if os.path.islink(root) or not os.path.isdir(root):
+        lines.append("entries: (directory not created yet — postinst creates it on device)")
+        return "\n".join(lines)
+    entries = list_probe_entries(root)
+    if not entries:
+        lines.append("entries: (none — drop your own trees here)")
+    else:
+        lines.append("entries:")
+        lines.extend("  " + entry for entry in entries)
+    lines.append("listing only — names, not bodies; nothing here is compiled or generated")
+    return "\n".join(lines)
+
+
 def option(value, label, selected=False):
     sel = " selected" if selected else ""
     return f'<option value="{html.escape(value, quote=True)}"{sel}>{html.escape(label)}</option>'
@@ -370,6 +480,19 @@ def render_page():
         current += "\n" + inv["error"]
 
     page = PAGE
+    page = page.replace(
+        "__BUILD_BANNER__",
+        html.escape(f"=== KERNELLAB session BUILD {console_build()} ==="),
+    )
+    page = page.replace(
+        "__EVIDENCE__",
+        html.escape(
+            "evidence class: device (weight 1.0, device receipt) · "
+            "emu (weight 0.5, not a device receipt) · "
+            "map (weight 0.3, not a device receipt). "
+        ),
+    )
+    page = page.replace("__PROBES__", html.escape(format_probes_listing()))
     page = page.replace("__BUILD_OPTIONS__", build_opts)
     page = page.replace("__BASELINE_OPTIONS__", baseline_opts)
     page = page.replace("__CACHE_OPTIONS__", cache_opts)
@@ -511,10 +634,21 @@ class Handler(BaseHTTPRequestHandler):
             _code, text = kl_run(["emu43748", "--cache", cache])
             self._send(text)
             return
+        if cmd == "probes-list":
+            self._send(format_probes_listing())
+            return
         self._send("unknown cmd")
 
 
 def main():
+    build = console_build()
+    print(f"=== KERNELLAB session BUILD {build} ===")
+    print(
+        "evidence class: device (weight 1.0, device receipt) | "
+        "emu (weight 0.5, not a device receipt) | "
+        "map (weight 0.3, not a device receipt)"
+    )
+    print(f"probes: {probes_root()} (codegen slot empty)")
     print(f"KernelLab Console -> http://127.0.0.1:{PORT} (localhost only)")
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 

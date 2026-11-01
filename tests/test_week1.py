@@ -352,6 +352,7 @@ class Week1Tests(unittest.TestCase):
         env = self.env.copy()
         env["KL_PORT"] = "8738"
         env["KERNELLAB_BIN"] = str(KL)
+        env["KERNELLAB_PROBES"] = str(self.root / "probes")
         proc = subprocess.Popen(
             [sys.executable, str(CONSOLE)],
             env=env,
@@ -359,7 +360,15 @@ class Week1Tests(unittest.TestCase):
             stderr=subprocess.PIPE,
             text=True,
         )
-        self.addCleanup(proc.terminate)
+        def stop_console():
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2)
+
+        self.addCleanup(stop_console)
         base = "http://127.0.0.1:8738"
 
         def get(path):
@@ -391,6 +400,14 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("APPLE-SUBMIT: closed", page)
         self.assertIn(">23F77<", page)
         self.assertIn('value="ident"', page)
+        self.assertIn("=== KERNELLAB session BUILD 0.3.0 ===", page)
+        self.assertIn("evidence class:", page)
+        self.assertIn("device (weight 1.0, device receipt)", page)
+        self.assertIn("emu (weight 0.5, not a device receipt)", page)
+        self.assertIn("map (weight 0.3, not a device receipt)", page)
+        self.assertIn("Probes workspace", page)
+        self.assertIn("codegen: empty", page)
+        self.assertIn("not a new .deb", page)
 
         status, body = get("/api?cmd=gate")
         self.assertEqual(status, 200)
@@ -427,6 +444,56 @@ class Week1Tests(unittest.TestCase):
         status, body = get("/api?cmd=target-set&build=not-a-build")
         self.assertIn("refusing build id", body)
 
+        tree = self.root / "probes" / "operator-tree"
+        tree.mkdir(parents=True)
+        (tree / "owned.m").write_text("OPERATOR-BODY-NOT-LISTED\n")
+        status, body = get("/api?cmd=probes-list")
+        self.assertEqual(status, 200)
+        self.assertIn("operator-tree/owned.m", body)
+        self.assertNotIn("OPERATOR-BODY-NOT-LISTED", body)
+        self.assertIn("codegen: empty", body)
+        self.assertIn("listing only", body)
+
+    def test_codegen_slot_is_empty_and_lists_names_only(self):
+        import importlib
+        sys.path.insert(0, str(ROOT))
+        kl = importlib.import_module("klconsole")
+        probes = self.root / "probes"
+        tree = probes / "operator-tree"
+        tree.mkdir(parents=True)
+        (tree / "owned.m").write_text("OPERATOR-BODY-NOT-LISTED\n")
+        before = sorted(path.name for path in tree.iterdir())
+        slot = kl.operator_codegen_slot(str(probes))
+        self.assertEqual(slot["status"], "empty")
+        self.assertFalse(slot["generates"])
+        self.assertFalse(slot["compiles"])
+        self.assertFalse(slot["copies_sources"])
+        self.assertEqual(slot["path"], str(probes))
+        self.assertEqual(sorted(path.name for path in tree.iterdir()), before)
+        missing = self.root / "missing-probes"
+        kl.operator_codegen_slot(str(missing))
+        self.assertFalse(missing.exists())
+        self.assertEqual(kl.CONSOLE_BUILD, "0.3.0")
+        control = (ROOT / "packaging" / "control").read_text()
+        version = next(
+            line.split()[1] for line in control.splitlines() if line.startswith("Version:")
+        )
+        self.assertEqual(kl.CONSOLE_BUILD, version)
+        saved = os.environ.get("KERNELLAB_PROBES")
+        os.environ["KERNELLAB_PROBES"] = str(probes)
+        try:
+            text = kl.format_probes_listing()
+        finally:
+            if saved is None:
+                os.environ.pop("KERNELLAB_PROBES", None)
+            else:
+                os.environ["KERNELLAB_PROBES"] = saved
+        self.assertIn("operator-tree/owned.m", text)
+        self.assertNotIn("OPERATOR-BODY-NOT-LISTED", text)
+        self.assertIn("codegen: empty", text)
+        self.assertIn("not a new .deb", text)
+        self.assertIn("slot: empty", text)
+
     def test_deb_ships_tools_and_not_a_kernelcache(self):
         if shutil.which("dpkg-deb") is None:
             self.skipTest("dpkg-deb missing")
@@ -453,9 +520,18 @@ class Week1Tests(unittest.TestCase):
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
             "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
             "./usr/share/kernellab/NOTES/004_lum1na_parity.md",
+            "./usr/share/kernellab/NOTES/005_springboard_and_probes.md",
+            "./Applications/KernelLab.app/Info.plist",
+            "./Applications/KernelLab.app/KernelLab",
+            "./Applications/KernelLab.app/icon.png",
+            "./Applications/KernelLab.app/icon@2x.png",
+            "./Applications/KernelLab.app/icon@3x.png",
         ):
             self.assertIn(needle, contents)
         self.assertNotIn("kernelcache", contents.lower())
+        for line in contents.splitlines():
+            path = line.split()[-1]
+            self.assertFalse(path.endswith(".m") or path.endswith(".h"), path)
         info = subprocess.check_output(["dpkg-deb", "--info", str(deb)], text=True)
         self.assertIn(f"Version: {version}", info)
         self.assertIn("postinst", info)
@@ -464,10 +540,31 @@ class Week1Tests(unittest.TestCase):
         subprocess.check_call(["dpkg-deb", "-e", str(deb), str(control)])
         postinst = (control / "postinst").read_text()
         self.assertIn("mkdir -p /var/jb/var/kernellab/caches", postinst)
+        self.assertIn("mkdir -p /var/jb/var/kernellab/probes", postinst)
+        self.assertIn("uicache -p /var/jb/Applications/KernelLab.app", postinst)
         self.assertIn("kernellab sim ident", postinst)
         self.assertIn("target set --train 26.5 --baseline-train 27.0", postinst)
         self.assertIn("not a fileable finding", postinst)
         self.assertIn("APPLE-SUBMIT stays closed", postinst)
+        self.assertIn("not a new .deb", postinst)
+
+        import plistlib
+        rootfs = self.root / "rootfs"
+        subprocess.check_call(["dpkg-deb", "-x", str(deb), str(rootfs)])
+        app = rootfs / "Applications" / "KernelLab.app"
+        info = plistlib.loads((app / "Info.plist").read_bytes())
+        self.assertEqual(info["CFBundleDisplayName"], "KernelLab")
+        self.assertEqual(info["CFBundleExecutable"], "KernelLab")
+        self.assertEqual(info["CFBundleShortVersionString"], version)
+        launcher = (app / "KernelLab").read_text()
+        self.assertNotIn("__KERNELLAB_BUILD__", launcher)
+        self.assertIn(f"KERNELLAB_BUILD:-{version}", launcher)
+        self.assertIn("klconsole", launcher)
+        self.assertIn("127.0.0.1", launcher)
+        self.assertIn("codegen slot empty", launcher)
+        self.assertTrue(os.access(app / "KernelLab", os.X_OK))
+        for icon in ("icon.png", "icon@2x.png", "icon@3x.png"):
+            self.assertGreater((app / icon).stat().st_size, 32)
 
 
 if __name__ == "__main__":
