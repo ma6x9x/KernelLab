@@ -520,7 +520,6 @@ class Week1Tests(unittest.TestCase):
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
             "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
             "./usr/share/kernellab/NOTES/004_lum1na_parity.md",
-            "./usr/share/kernellab/NOTES/005_springboard_and_probes.md",
             "./Applications/KernelLab.app/Info.plist",
             "./Applications/KernelLab.app/KernelLab",
             "./Applications/KernelLab.app/icon.png",
@@ -529,6 +528,9 @@ class Week1Tests(unittest.TestCase):
         ):
             self.assertIn(needle, contents)
         self.assertNotIn("kernelcache", contents.lower())
+        self.assertNotIn("005_springboard", contents)
+        self.assertNotIn("004_springboard", contents)
+        self.assertNotIn("004_lab_receipt", contents)
         for line in contents.splitlines():
             path = line.split()[-1]
             self.assertFalse(path.endswith(".m") or path.endswith(".h"), path)
