@@ -11,11 +11,15 @@ This repository does not submit to Apple and does not describe that chain.
 
 ## 1. Install
 
-Install `kernellab_0.2.1_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
-`postinst` creates `/var/jb/var/kernellab/caches` and prints this loop.
-The package contains the CLI, `klconsole`, and `oracle_bridge`. It does not
-contain a kernelcache. Confirm with `dpkg-deb --contents` before you copy
-one on.
+Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
+`postinst` creates `/var/jb/var/kernellab/caches` and
+`/var/jb/var/kernellab/probes`, registers the SpringBoard icon with
+`uicache -p /var/jb/Applications/KernelLab.app`, and prints this loop.
+The package contains the CLI, `klconsole`, `oracle_bridge`, and
+`KernelLab.app`. It does not contain a kernelcache. Confirm with
+`dpkg-deb --contents` before you copy one on. The icon opens the same
+localhost console as `klconsole`. See `NOTES/004_springboard_and_probes.md`
+for the probes workspace (new tests are files in that folder, not a new deb).
 
 ## 2. Drop kernelcaches
 

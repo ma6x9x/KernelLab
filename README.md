@@ -6,6 +6,27 @@ those files. It is not a jailbreak and it does not ship kernelcaches.
 
 The `.deb` is the lab home. Mind is a separate repo. Lumina / P007 is the hands.
 
+## Install on a rootless device
+
+Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo (or Zebra, or dpkg).
+`postinst` registers the SpringBoard app and creates the two operator
+directories. The KernelLab icon appears on the home screen. Tapping it
+opens the existing localhost console (`klconsole` on `127.0.0.1:8737`).
+
+Drop your own extracted kernelcaches under:
+
+```
+/var/jb/var/kernellab/caches/<build>/kernelcache…
+```
+
+Then the day-one loop below. Full steps are in `NOTES/003_jb_rig_day_one.md`
+and `NOTES/004_springboard_and_probes.md`.
+
+New on-device tests are files you place in `/var/jb/var/kernellab/probes/`.
+They are not part of this package. Adding one does not require a new `.deb`
+or a new sideload. The console lists names in that folder. The codegen slot
+is empty: this repo does not generate or compile those files.
+
 ## JB-rig day one: 26.5 host vs 27.0
 
 The full runbook is `NOTES/003_jb_rig_day_one.md`. Short form, after the deb
@@ -88,7 +109,8 @@ on: 23F77, 24A435, and 24B119. Other build ids refuse the VA read.
 - `klconsole.py` — localhost console. `http://127.0.0.1:8737`.
 - `oracle_bridge.py` — offline LabBandit ledger mirror.
 - `NOTES/` — design notes. Day one is `NOTES/003_jb_rig_day_one.md`.
-- `packaging/` — rootless Procursus `.deb`. See `DEBIAN-STYLE.md`.
+- `packaging/` — rootless Procursus `.deb`, including `KernelLab.app`. See `DEBIAN-STYLE.md`.
+- `/var/jb/var/kernellab/probes/` — operator-owned trees, created on install, not shipped.
 
 ## Console
 

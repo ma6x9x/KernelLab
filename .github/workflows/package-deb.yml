@@ -34,7 +34,15 @@ jobs:
       - name: Verify deb
         run: |
           dpkg-deb --info build/*.deb | head -20
-          dpkg-deb --contents build/*.deb | head -20
+          dpkg-deb --contents build/*.deb
+          dpkg-deb --contents build/*.deb | grep -F './usr/bin/kernellab'
+          dpkg-deb --contents build/*.deb | grep -F './usr/bin/klconsole'
+          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/Info.plist'
+          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/KernelLab'
+          if dpkg-deb --contents build/*.deb | awk '{print $NF}' | grep -E '\.(m|h)$'; then
+            echo "refusing a package that contains .m/.h sources" >&2
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

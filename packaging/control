@@ -1,6 +1,6 @@
 Package: com.ma6x9x.kernellab
 Name: Kernellab
-Version: 0.2.1
+Version: 0.3.0
 Architecture: iphoneos-arm64
 Description: userspace micro-lab for iOS/XNU kernel research. Pick a saved
  kernelcache (target.json), survivor-diff pinned method tables across two
@@ -8,6 +8,8 @@ Description: userspace micro-lab for iOS/XNU kernel research. Pick a saved
  26.5 is 23F77 and 27.0 is 24A435 (24A437 is the unpinned 27.0-family
  cache). The Apple-submit gate stays closed. JB-rig kernel testing is
  not a fileable finding. No kernelcaches included (operator-supplied).
+ SpringBoard app KernelLab.app opens the localhost console. Operator
+ probe trees belong in /var/jb/var/kernellab/probes and are not packaged.
 Maintainer: kolby <noreply@github.com>
 Author: kolbymaxx
 Section: Research

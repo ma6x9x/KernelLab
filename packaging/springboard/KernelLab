@@ -1,0 +1,114 @@
+#!/bin/sh
+# KernelLab.app executable (rootless Procursus).
+#
+# Packaging-only SpringBoard entry. It prints the BUILD banner, starts the
+# existing klconsole on 127.0.0.1, and opens that page. The on-device UI is
+# the console that already ships in this package.
+#
+# CI has no iOS SDK, so this file is the app executable (a /bin/sh launcher)
+# rather than a Theos binary. It does not generate, compile, or read probe
+# sources. Operator trees stay under /var/jb/var/kernellab/probes.
+set -u
+
+BUILD_ID="${KERNELLAB_BUILD:-__KERNELLAB_BUILD__}"
+PORT="${KL_PORT:-8737}"
+URL="http://127.0.0.1:${PORT}/"
+
+stamp() {
+  date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u
+}
+
+banner() {
+  printf '%s\n' "=== KERNELLAB session $(stamp) BUILD ${BUILD_ID} ==="
+  printf '%s\n' "evidence class: device (weight 1.0, device receipt) | emu (weight 0.5, not a device receipt) | map (weight 0.3, not a device receipt)"
+  printf '%s\n' "probes workspace: /var/jb/var/kernellab/probes — drop your own trees here; new tests are files, not a new deb; codegen slot empty"
+  printf '%s\n' "console: ${URL}"
+}
+
+LOG=""
+if [ -d /var/jb ]; then
+  mkdir -p /var/jb/var/kernellab 2>/dev/null || true
+  LOG=/var/jb/var/kernellab/app-launch.log
+fi
+
+banner
+if [ -n "$LOG" ]; then
+  banner >> "$LOG" 2>/dev/null || true
+fi
+
+PY=""
+for c in /var/jb/usr/bin/python3 /usr/bin/python3; do
+  if [ -x "$c" ]; then
+    PY=$c
+    break
+  fi
+done
+if [ -z "$PY" ]; then
+  echo "kernellab: python3 missing (package Depends: python3)" >&2
+  exit 1
+fi
+
+KL=""
+for c in /var/jb/usr/bin/klconsole /usr/bin/klconsole; do
+  if [ -f "$c" ]; then
+    KL=$c
+    break
+  fi
+done
+if [ -z "$KL" ]; then
+  echo "kernellab: klconsole missing" >&2
+  exit 1
+fi
+
+export KERNELLAB_BUILD="$BUILD_ID"
+export KL_PORT="$PORT"
+
+listening() {
+  "$PY" -c 'import socket, sys
+s = socket.socket()
+s.settimeout(0.4)
+try:
+    s.connect(("127.0.0.1", int(sys.argv[1])))
+except Exception:
+    sys.exit(1)
+finally:
+    s.close()
+' "$PORT"
+}
+
+CHILD=""
+if listening; then
+  echo "klconsole already listening on ${URL}"
+else
+  "$PY" "$KL" &
+  CHILD=$!
+  i=0
+  while [ "$i" -lt 15 ]; do
+    if listening; then
+      break
+    fi
+    i=$((i + 1))
+    sleep 1
+  done
+fi
+
+opened=0
+for u in /var/jb/usr/bin/uiopen /usr/bin/uiopen; do
+  if [ -x "$u" ]; then
+    "$u" "$URL" || true
+    opened=1
+    break
+  fi
+done
+if [ "$opened" -eq 0 ]; then
+  echo "uiopen not found; open ${URL} on this device"
+fi
+
+if [ -n "$CHILD" ]; then
+  wait "$CHILD"
+else
+  # Console is already up. Hold this launch so SpringBoard keeps the process.
+  while true; do
+    sleep 3600
+  done
+fi

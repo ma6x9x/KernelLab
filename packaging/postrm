@@ -1,0 +1,15 @@
+#!/bin/sh
+# postrm — drop the SpringBoard icon after remove. Upgrade leaves the new
+# copy's postinst to register /var/jb/Applications/KernelLab.app.
+# Operator files under /var/jb/var/kernellab/probes are not deleted here.
+set -u
+case "${1:-}" in
+  remove|purge)
+    if [ -x /var/jb/usr/bin/uicache ]; then
+      /var/jb/usr/bin/uicache -a >/dev/null 2>&1 || true
+    elif command -v uicache >/dev/null 2>&1; then
+      uicache -a >/dev/null 2>&1 || true
+    fi
+    ;;
+esac
+exit 0
