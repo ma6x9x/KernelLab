@@ -400,7 +400,7 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("APPLE-SUBMIT: closed", page)
         self.assertIn(">23F77<", page)
         self.assertIn('value="ident"', page)
-        self.assertIn("=== KERNELLAB session BUILD 0.3.0 ===", page)
+        self.assertIn("=== KERNELLAB session BUILD 0.3.1 ===", page)
         self.assertIn("evidence class:", page)
         self.assertIn("device (weight 1.0, device receipt)", page)
         self.assertIn("emu (weight 0.5, not a device receipt)", page)
@@ -473,7 +473,7 @@ class Week1Tests(unittest.TestCase):
         missing = self.root / "missing-probes"
         kl.operator_codegen_slot(str(missing))
         self.assertFalse(missing.exists())
-        self.assertEqual(kl.CONSOLE_BUILD, "0.3.0")
+        self.assertEqual(kl.CONSOLE_BUILD, "0.3.1")
         control = (ROOT / "packaging" / "control").read_text()
         version = next(
             line.split()[1] for line in control.splitlines() if line.startswith("Version:")
@@ -558,13 +558,19 @@ class Week1Tests(unittest.TestCase):
         self.assertEqual(info["CFBundleDisplayName"], "KernelLab")
         self.assertEqual(info["CFBundleExecutable"], "KernelLab")
         self.assertEqual(info["CFBundleShortVersionString"], version)
-        launcher = (app / "KernelLab").read_text()
-        self.assertNotIn("__KERNELLAB_BUILD__", launcher)
-        self.assertIn(f"KERNELLAB_BUILD:-{version}", launcher)
-        self.assertIn("klconsole", launcher)
-        self.assertIn("127.0.0.1", launcher)
-        self.assertIn("codegen slot empty", launcher)
+        blob = (app / "KernelLab").read_bytes()
+        self.assertEqual(blob[:4], b"\xcf\xfa\xed\xfe")
+        self.assertFalse(blob.startswith(b"#!"))
+        self.assertIn(b"/var/jb/usr/bin/kernellab", blob)
+        self.assertIn(b"APPLE-SUBMIT", blob)
+        self.assertNotIn(b"/bin/sh", blob)
         self.assertTrue(os.access(app / "KernelLab", os.X_OK))
+        macho = subprocess.run(
+            ["sh", str(ROOT / "packaging" / "postinst"), "--is-macho", str(app / "KernelLab")],
+        )
+        self.assertEqual(macho.returncode, 0)
+        self.assertIn("skipping uicache", postinst)
+        self.assertIn("does not register a /bin/sh launcher", postinst)
         for icon in ("icon.png", "icon@2x.png", "icon@3x.png"):
             self.assertGreater((app / icon).stat().st_size, 32)
 

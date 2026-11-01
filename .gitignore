@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 caches/
 *.kernelcache*
+app/.theos/
+app/packages/
+.DS_Store

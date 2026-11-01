@@ -9,7 +9,12 @@ on:
       - "oracle_bridge.py"
       - "packaging/**"
       - "NOTES/**"
+      - "app/**"
+      - "tests/**"
+      - "README.md"
+      - "DEBIAN-STYLE.md"
       - ".github/workflows/package-deb.yml"
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -43,6 +48,13 @@ jobs:
             echo "refusing a package that contains .m/.h sources" >&2
             exit 1
           fi
+          rm -rf /tmp/kernellab-deb-root
+          dpkg-deb -x build/*.deb /tmp/kernellab-deb-root
+          file /tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab | grep -F 'Mach-O'
+          python3 -c 'import pathlib,sys; b=pathlib.Path("/tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab").read_bytes(); sys.exit(0 if list(b[:4])==[0xCF,0xFA,0xED,0xFE] and not b.startswith(b"#!") else 1)'
+
+      - name: Unit tests
+        run: python3 -m unittest tests.test_week1 tests.test_app_shell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -53,4 +65,4 @@ jobs:
 
       - name: Summary
         run: |
-          echo "kernellab version packaged (rootless Procursus layout). Bump the Version field in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"
+          echo "kernellab deb ships an arm64 Mach-O KernelLab.app (rootless Procursus). postinst uicaches only when that executable is Mach-O." >> "$GITHUB_STEP_SUMMARY"

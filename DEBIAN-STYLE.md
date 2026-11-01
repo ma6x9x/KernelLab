@@ -9,9 +9,12 @@ system paths, installed via Sileo/Zebra/dpkg like any other repo package.
 - `/usr/bin/oracle_bridge` — LabBandit ledger mirror
 - `/usr/share/kernellab/` — the same three sources, README, and `NOTES/`
 - `/Applications/KernelLab.app` — SpringBoard bundle (`CFBundleDisplayName`
-  KernelLab). Installed path on device: `/var/jb/Applications/KernelLab.app`.
-  The executable launches `klconsole` and opens `http://127.0.0.1:8737/`.
-  `postinst` runs `uicache -p /var/jb/Applications/KernelLab.app`.
+  KernelLab, `CFBundleIdentifier` `com.ma6x9x.kernellab`). Installed path
+  on device: `/var/jb/Applications/KernelLab.app`. The executable is an
+  arm64 Mach-O (MH magic), not a shell script. `postinst` runs
+  `uicache -p /var/jb/Applications/KernelLab.app` only after `file(1)` or
+  the MH magic says the executable is Mach-O. A missing binary or a
+  `#!/bin/sh` launcher skips `uicache`.
 - Caches are NOT packaged (Apple content). `postinst` creates
   `/var/jb/var/kernellab/caches` and prints the pick → diff → sim hint.
   The operator drops extracted kernelcaches under `<caches>/<build>/`.
