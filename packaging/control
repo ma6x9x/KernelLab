@@ -1,6 +1,6 @@
 Package: com.ma6x9x.kernellab
 Name: Kernellab
-Version: 0.3.1
+Version: 0.3.2
 Architecture: iphoneos-arm64
 Description: userspace micro-lab for iOS/XNU kernel research. Pick a saved
  kernelcache (target.json), survivor-diff pinned method tables across two

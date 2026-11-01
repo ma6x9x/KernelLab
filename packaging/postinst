@@ -1,9 +1,16 @@
 #!/bin/sh
 # postinst — caches dir, empty probes workspace, SpringBoard uicache.
 # Rootless: no chown. Kernelcaches are never shipped; the operator drops them.
-# uicache -p runs only when KernelLab is a Mach-O (file(1) or MH magic).
-# A /bin/sh launcher is not an application and is skipped.
+# uicache runs only when KernelLab is a Mach-O (MH magic). A /bin/sh launcher
+# is not an application and is skipped.
+#
+# Dopamine's /var/jb is a symlink into /var/containers. uicache -p on that
+# path otherwise registers a User app, and SpringBoard shows no icon.
+# -s forces a system registration. uikittools-ng still exits 0 when
+# registration fails, so "Unable to register" falls through to uicache -a.
 set -u
+
+export PATH="/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 
 is_macho() {
   bin=$1
@@ -16,10 +23,31 @@ is_macho() {
       return 0
     fi
   fi
-  magic=$(od -An -t x1 -N 4 "$bin" 2>/dev/null | tr -d ' \n' | tr 'A-F' 'a-f')
+  magic=""
+  odbin=""
+  for candidate in /var/jb/usr/bin/od /usr/bin/od od; do
+    if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
+      odbin=$candidate
+      break
+    fi
+  done
+  if [ -n "$odbin" ]; then
+    magic=$("$odbin" -An -t x1 -N 4 "$bin" 2>/dev/null | tr -d ' \n' | tr 'A-F' 'a-f')
+  fi
   case "$magic" in
     feedface|cefaedfe|feedfacf|cffaedfe) return 0 ;;
   esac
+  pybin=""
+  for candidate in /var/jb/usr/bin/python3 /usr/bin/python3 python3; do
+    if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
+      pybin=$candidate
+      break
+    fi
+  done
+  if [ -n "$pybin" ]; then
+    "$pybin" -c 'import pathlib,sys; b=pathlib.Path(sys.argv[1]).read_bytes()[:4]; sys.exit(0 if b in (b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe") else 1)' "$bin"
+    return $?
+  fi
   return 1
 }
 
@@ -38,13 +66,11 @@ if [ -d /var/jb ]; then
   mkdir -p /var/jb/var/kernellab/probes
   HINTDIR=/var/jb/var/kernellab/caches
   PROBES=/var/jb/var/kernellab/probes
-  APP=/var/jb/Applications/KernelLab.app
 else
   mkdir -p /var/kernellab/caches 2>/dev/null || true
   mkdir -p /var/kernellab/probes 2>/dev/null || true
   HINTDIR=/var/kernellab/caches
   PROBES=/var/kernellab/probes
-  APP=/Applications/KernelLab.app
 fi
 echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
 echo "  kernellab target list"
@@ -55,17 +81,78 @@ echo "  kernellab gate   # APPLE-SUBMIT stays closed; JB-rig testing is not a fi
 echo "  oracle_bridge stages   # sandbox -> leak -> race -> krw -> sptm (map/emu labels)"
 echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
 echo "probes workspace: ${PROBES}/  — drop your own trees here; new tests are files, not a new .deb."
-if is_macho "$APP/KernelLab"; then
-  chmod 755 "$APP/KernelLab" 2>/dev/null || true
-  if [ -x /var/jb/usr/bin/uicache ]; then
-    /var/jb/usr/bin/uicache -p /var/jb/Applications/KernelLab.app || true
-  elif command -v uicache >/dev/null 2>&1; then
-    uicache -p /var/jb/Applications/KernelLab.app || true
-  else
-    echo "uicache not found; run: uicache -p /var/jb/Applications/KernelLab.app"
+
+pick_app() {
+  for candidate in \
+    /var/jb/Applications/KernelLab.app \
+    ${DPKG_ROOT:+$DPKG_ROOT/Applications/KernelLab.app} \
+    /Applications/KernelLab.app
+  do
+    if [ -n "$candidate" ] && is_macho "$candidate/KernelLab"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+find_uicache() {
+  for candidate in \
+    /var/jb/usr/bin/uicache \
+    ${DPKG_ROOT:+$DPKG_ROOT/usr/bin/uicache} \
+    /usr/bin/uicache
+  do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  if command -v uicache >/dev/null 2>&1; then
+    command -v uicache
+    return 0
   fi
-  echo "SpringBoard: KernelLab.app registered (uicache -p /var/jb/Applications/KernelLab.app)."
-  echo "Respring if the icon is still missing."
+  return 1
+}
+
+uicache_ok() {
+  _log=/tmp/kernellab-uicache.log
+  if "$@" >"$_log" 2>&1; then
+    if grep -q "Unable to register" "$_log" 2>/dev/null; then
+      cat "$_log" >&2 || true
+      rm -f "$_log"
+      return 1
+    fi
+    rm -f "$_log"
+    return 0
+  fi
+  cat "$_log" >&2 || true
+  rm -f "$_log"
+  return 1
+}
+
+APP=""
+if APP=$(pick_app); then
+  chmod 755 "$APP/KernelLab" 2>/dev/null || true
+  UICACHE=""
+  if UICACHE=$(find_uicache); then
+    # -s: Dopamine resolves /var/jb inside /var/containers. Without it the
+    # bundle is registered as a User app and the home screen stays empty.
+    # uicache -p /var/jb/Applications/KernelLab.app is the rootless path.
+    if uicache_ok "$UICACHE" -p "$APP" -s \
+      || uicache_ok "$UICACHE" -p "$APP" \
+      || uicache_ok "$UICACHE" -a; then
+      echo "SpringBoard: KernelLab.app registered (uicache -p ${APP})."
+      echo "Respring if the icon is still missing."
+    else
+      echo "uicache did not register ${APP}."
+      echo "Run: uicache -p ${APP} -s"
+      echo "If that prints Unable to register, run: uicache -a"
+      echo "Respring after uicache."
+    fi
+  else
+    echo "uicache not found; run: uicache -p ${APP} -s"
+    echo "Respring if the icon is still missing."
+  fi
 else
   echo "KernelLab.app has no Mach-O executable; skipping uicache."
   echo "SpringBoard does not register a /bin/sh launcher."

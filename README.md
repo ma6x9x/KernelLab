@@ -8,13 +8,14 @@ The `.deb` is the lab home. Mind is a separate repo. Lumina / P007 is the hands.
 
 ## Install on a rootless device
 
-Install `kernellab_0.3.1_iphoneos-arm64.deb` with Sileo (or Zebra, or dpkg).
-`postinst` sees a real arm64 Mach-O at
-`/var/jb/Applications/KernelLab.app/KernelLab` and runs
-`uicache -p /var/jb/Applications/KernelLab.app`. The KernelLab icon
-appears on the home screen. Respring if it does not. 0.3.0 shipped a
-`/bin/sh` launcher; SpringBoard does not register those, which is why
-that build had no icon.
+Install `kernellab_0.3.2_iphoneos-arm64.deb` with Sileo (or Zebra, or dpkg).
+`postinst` puts `/var/jb/usr/bin` on `PATH`, then looks for the arm64
+Mach-O at `/var/jb/Applications/KernelLab.app` and at
+`/Applications/KernelLab.app`. It runs `uicache -p` on the bundle that is
+actually there, with `-s` so a Dopamine `/var/jb` symlink into
+`/var/containers` is registered as a system app. If uicache reports
+`Unable to register`, it runs `uicache -a`. Respring if the KernelLab
+icon is still missing.
 
 Tapping the icon opens the soft UI: the Console tab `posix_spawn`s
 `/var/jb/usr/bin/kernellab` and shows its stdout. `klconsole` is still

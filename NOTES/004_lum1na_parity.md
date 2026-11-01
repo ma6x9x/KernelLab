@@ -79,23 +79,23 @@ Non-goals: no attack `.m` authorship, no probe codegen, and no copying
 
 ## SpringBoard app and probes workspace
 
-Package `0.3.1` installs the CLI and a rootless app:
+Package `0.3.2` installs the CLI and a rootless app:
 
 ```
 /var/jb/Applications/KernelLab.app
 ```
 
 `CFBundleDisplayName` is `KernelLab`. The executable is an arm64 Mach-O.
-`postinst` runs `uicache -p /var/jb/Applications/KernelLab.app` only when
-that file is Mach-O. 0.3.0's `/bin/sh` launcher was not registered, so
-the home screen stayed empty. The icon's Console tab runs
-`/var/jb/usr/bin/kernellab`. `klconsole` remains on `127.0.0.1:8737`.
-This package does not add `.m` or `.h` sources.
+`postinst` runs `uicache -p` on the bundle path that exists
+(`/var/jb/Applications/KernelLab.app` or `/Applications/KernelLab.app`)
+with `-s`, and falls back to `uicache -a` when registration fails.
+The icon's Console tab runs `/var/jb/usr/bin/kernellab`. `klconsole`
+remains on `127.0.0.1:8737`. This package does not add `.m` or `.h` sources.
 
-Install `kernellab_0.3.1_iphoneos-arm64.deb` with Sileo, drop extracted
+Install `kernellab_0.3.2_iphoneos-arm64.deb` with Sileo, drop extracted
 kernelcaches under `/var/jb/var/kernellab/caches/<build>/`, then the
 day-one loop in `NOTES/003_jb_rig_day_one.md`. The console header prints
-`BUILD 0.3.1`. Evidence classes stay the table above. `APPLE-SUBMIT`
+`BUILD 0.3.2`. Evidence classes stay the table above. `APPLE-SUBMIT`
 stays closed. Respring if the icon is missing after install.
 
 `postinst` creates `/var/jb/var/kernellab/probes/` and leaves it empty.

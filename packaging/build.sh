@@ -59,8 +59,13 @@ stage_springboard_app() {
       echo "refusing to package a KernelLab executable that is not Mach-O" >&2
       exit 1
     fi
+    if ! python3 packaging/check-macho.py "$dest/KernelLab"; then
+      echo "refusing to package a KernelLab executable with bad load commands or signature" >&2
+      exit 1
+    fi
     chmod 755 "$dest/KernelLab"
   fi
+  printf 'APPL????' > "$dest/PkgInfo"
   python3 - "$dest/Info.plist" "$VER" << 'PY'
 import plistlib, sys
 path, version = sys.argv[1], sys.argv[2]
@@ -72,7 +77,19 @@ info["CFBundleIdentifier"] = "com.ma6x9x.kernellab"
 info["CFBundleShortVersionString"] = version
 info["CFBundleVersion"] = version
 info["CFBundlePackageType"] = "APPL"
+info["CFBundleSignature"] = "????"
+info["CFBundleSupportedPlatforms"] = ["iPhoneOS"]
 info["MinimumOSVersion"] = info.get("MinimumOSVersion") or "15.0"
+info["CFBundleIconFiles"] = ["icon", "icon@2x", "icon@3x"]
+icons = info.get("CFBundleIcons")
+if not isinstance(icons, dict):
+    icons = {}
+primary = icons.get("CFBundlePrimaryIcon")
+if not isinstance(primary, dict):
+    primary = {}
+primary["CFBundleIconFiles"] = ["icon", "icon@2x", "icon@3x"]
+icons["CFBundlePrimaryIcon"] = primary
+info["CFBundleIcons"] = icons
 with open(path, "wb") as handle:
     plistlib.dump(info, handle)
 PY
@@ -106,7 +123,7 @@ for script in postinst postrm prerm; do
 done
 
 mkdir -p "$OUTDIR"
-# Checkout keeps older kernellab_*.deb files (0.3.0 next to 0.3.1).
+# Checkout keeps older kernellab_*.deb files (0.3.0 next to 0.3.2).
 # dpkg-deb refuses a glob that expands to more than one package.
 rm -f "$OUTDIR"/kernellab_*.deb
 dpkg-deb --root-owner-group --build "$STAGE" "$OUTDIR/kernellab_${VER}_iphoneos-arm64.deb"

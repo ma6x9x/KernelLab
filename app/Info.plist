@@ -14,6 +14,10 @@
 		<string>icon@2x</string>
 		<string>icon@3x</string>
 	</array>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>iPhoneOS</string>
+	</array>
 	<key>CFBundleIcons</key>
 	<dict>
 		<key>CFBundlePrimaryIcon</key>
@@ -21,6 +25,8 @@
 			<key>CFBundleIconFiles</key>
 			<array>
 				<string>icon</string>
+				<string>icon@2x</string>
+				<string>icon@3x</string>
 			</array>
 		</dict>
 	</dict>
@@ -33,9 +39,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.1</string>
+	<string>0.3.2</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.3.1</string>
+	<string>0.3.2</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>MinimumOSVersion</key>

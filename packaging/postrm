@@ -3,6 +3,7 @@
 # copy's postinst to register /var/jb/Applications/KernelLab.app.
 # Operator files under /var/jb/var/kernellab/probes are not deleted here.
 set -u
+export PATH="/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 case "${1:-}" in
   remove|purge)
     if [ -x /var/jb/usr/bin/uicache ]; then
