@@ -11,11 +11,12 @@ This repository does not submit to Apple and does not describe that chain.
 
 ## 1. Install
 
-Install `kernellab_0.2.1_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
+Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
 `postinst` creates `/var/jb/var/kernellab/caches` and prints this loop.
-The package contains the CLI, `klconsole`, and `oracle_bridge`. It does not
-contain a kernelcache. Confirm with `dpkg-deb --contents` before you copy
-one on.
+The package contains the CLI, `klconsole`, `oracle_bridge`, and the
+SpringBoard shell `KernelLab.app` (see `NOTES/004_springboard_app.md`).
+It does not contain a kernelcache. Confirm with `dpkg-deb --contents`
+before you copy one on. The CLI loop below is unchanged.
 
 ## 2. Drop kernelcaches
 
@@ -130,3 +131,4 @@ kernellab gate
 
 Expect `APPLE-SUBMIT: closed` and `JB-rig kernel testing is not a fileable
 finding.` Stop there for Apple. Keep using the rig for the lab loop above.
+The SpringBoard app's Show gate button runs this same command.

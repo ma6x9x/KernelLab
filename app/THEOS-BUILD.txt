@@ -1,0 +1,19 @@
+This KernelLab.app layout was staged without a compiled executable.
+
+Ubuntu CI packages the Python harness and this bundle (Info.plist, icons,
+entitlements). It does not run Theos and does not invent a Mach-O.
+
+SpringBoard shows a tappable icon after a Theos build on a machine that
+has the iOS SDK:
+
+  export THEOS=~/theos
+  make -C app clean all
+  ./packaging/build.sh
+
+The packaging script copies app/prebuilt/KernelLab.app when that bundle
+contains Info.plist, otherwise a bundle it finds under app/.theos, otherwise
+this layout.
+
+The app is a shell over /var/jb/usr/bin/kernellab. APPLE-SUBMIT stays closed.
+No kernelcaches ship in the deb. The Probes tab lists operator-supplied
+sources and does not compile or run them.

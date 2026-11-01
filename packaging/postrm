@@ -1,0 +1,11 @@
+#!/bin/sh
+# postrm — ask SpringBoard to drop the icon after the bundle is removed.
+# Operator caches, probes, and receipts are left in place.
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  if command -v uicache >/dev/null 2>&1; then
+    uicache -a >/dev/null 2>&1 || true
+  else
+    echo "uicache not on PATH; respring so SpringBoard drops the KernelLab icon."
+  fi
+fi
+exit 0

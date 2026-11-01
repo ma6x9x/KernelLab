@@ -1,15 +1,30 @@
 #!/bin/sh
-# postinst — caches dir + the pick→diff→sim hint.
-# Rootless: no chown. Kernelcaches are never shipped; the operator drops them.
+# postinst — caches dir, probes workspace, receipts, SpringBoard uicache.
+# Package files stay root-owned. probes/ and receipts/ are the operator
+# workspace so Filza drops and the app can share them without a reinstall.
+# Kernelcaches are never shipped.
 chmod 755 /var/jb/usr/bin/kernellab /var/jb/usr/bin/klconsole /var/jb/usr/bin/oracle_bridge 2>/dev/null \
   || chmod 755 /usr/bin/kernellab /usr/bin/klconsole /usr/bin/oracle_bridge 2>/dev/null \
   || true
 if [ -d /var/jb ]; then
   mkdir -p /var/jb/var/kernellab/caches
+  mkdir -p /var/jb/var/kernellab/probes
+  mkdir -p /var/jb/var/kernellab/receipts
   HINTDIR=/var/jb/var/kernellab/caches
+  APP=/var/jb/Applications/KernelLab.app
+  if id mobile >/dev/null 2>&1; then
+    chown mobile:mobile \
+      /var/jb/var/kernellab \
+      /var/jb/var/kernellab/caches \
+      /var/jb/var/kernellab/probes \
+      /var/jb/var/kernellab/receipts 2>/dev/null || true
+  else
+    chmod 0777 /var/jb/var/kernellab/probes /var/jb/var/kernellab/receipts 2>/dev/null || true
+  fi
 else
   mkdir -p /var/kernellab/caches 2>/dev/null || true
   HINTDIR=/var/kernellab/caches
+  APP=/Applications/KernelLab.app
 fi
 echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
 echo "  kernellab target list"
@@ -18,4 +33,19 @@ echo "  kernellab diff"
 echo "  kernellab sim ident --feed /var/jb/var/kernellab/lab_bandit.json"
 echo "  kernellab gate   # APPLE-SUBMIT stays closed; JB-rig testing is not a fileable finding"
 echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
+echo "SpringBoard: tap the KernelLab icon. The app shells out to kernellab. If the icon is missing, run: uicache -p ${APP}"
+echo "Probes workspace (user-owned sources only, not executed by the app): /var/jb/var/kernellab/probes"
+echo "Receipts (ident + console + ips copies): /var/jb/var/kernellab/receipts"
+if [ -d "$APP" ] && [ -x "$APP/KernelLab" ]; then
+  if command -v uicache >/dev/null 2>&1; then
+    uicache -p "$APP" >/dev/null 2>&1 || uicache -a >/dev/null 2>&1 || true
+  else
+    echo "uicache not on PATH; respring or run: uicache -p $APP"
+  fi
+elif [ -d "$APP" ]; then
+  echo "KernelLab.app is packaged without a compiled executable, so uicache was skipped."
+  echo "Build with Theos, reinstall, then run: uicache -p $APP"
+else
+  echo "KernelLab.app was not in this deb. Build it with Theos, then repackage. See README."
+fi
 exit 0

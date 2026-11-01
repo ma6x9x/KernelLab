@@ -9,6 +9,10 @@ on:
       - "oracle_bridge.py"
       - "packaging/**"
       - "NOTES/**"
+      - "app/**"
+      - "tests/**"
+      - "README.md"
+      - "DEBIAN-STYLE.md"
       - ".github/workflows/package-deb.yml"
   workflow_dispatch:
 
@@ -33,8 +37,17 @@ jobs:
 
       - name: Verify deb
         run: |
-          dpkg-deb --info build/*.deb | head -20
-          dpkg-deb --contents build/*.deb | head -20
+          dpkg-deb --info build/*.deb
+          echo '--- contents ---'
+          dpkg-deb --contents build/*.deb
+          dpkg-deb --contents build/*.deb | grep -F './usr/bin/kernellab'
+          dpkg-deb --contents build/*.deb | grep -F './usr/bin/klconsole'
+          dpkg-deb --contents build/*.deb | grep -F './usr/bin/oracle_bridge'
+          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/Info.plist'
+          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/icon@2x.png'
+
+      - name: Unit tests
+        run: python3 -m unittest tests.test_week1 tests.test_app_shell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -45,4 +58,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "kernellab version packaged (rootless Procursus layout). Bump the Version field in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"
+          echo "kernellab deb packages the CLI and Applications/KernelLab.app (rootless Procursus layout)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Ubuntu CI does not run Theos. A launchable Mach-O is produced with: make -C app clean all && ./packaging/build.sh" >> "$GITHUB_STEP_SUMMARY"

@@ -390,9 +390,16 @@ class Week1Tests(unittest.TestCase):
             "./usr/bin/oracle_bridge",
             "./usr/share/kernellab/NOTES/002_target_diff_sim.md",
             "./usr/share/kernellab/NOTES/003_jb_rig_day_one.md",
+            "./usr/share/kernellab/NOTES/004_springboard_app.md",
+            "./Applications/KernelLab.app/Info.plist",
+            "./Applications/KernelLab.app/icon@2x.png",
+            "./Applications/KernelLab.app/THEOS-BUILD.txt",
         ):
             self.assertIn(needle, contents)
         self.assertNotIn("kernelcache", contents.lower())
+        for line in contents.splitlines():
+            path = line.split()[-1]
+            self.assertFalse(path.endswith(".m") or path.endswith(".mm"), path)
         info = subprocess.check_output(["dpkg-deb", "--info", str(deb)], text=True)
         self.assertIn(f"Version: {version}", info)
         self.assertIn("postinst", info)
@@ -405,6 +412,18 @@ class Week1Tests(unittest.TestCase):
         self.assertIn("target set --train 26.5 --baseline-train 27.0", postinst)
         self.assertIn("not a fileable finding", postinst)
         self.assertIn("APPLE-SUBMIT stays closed", postinst)
+        self.assertIn("uicache -p", postinst)
+        self.assertIn("/var/jb/Applications/KernelLab.app", postinst)
+        self.assertIn("/var/jb/var/kernellab/probes", postinst)
+        self.assertIn("/var/jb/var/kernellab/receipts", postinst)
+        extracted = self.root / "rootfs"
+        subprocess.check_call(["dpkg-deb", "-x", str(deb), str(extracted)])
+        plist = (extracted / "Applications" / "KernelLab.app" / "Info.plist").read_text()
+        self.assertIn("com.ma6x9x.kernellab", plist)
+        self.assertIn("<string>KernelLab</string>", plist)
+        note = (extracted / "Applications" / "KernelLab.app" / "THEOS-BUILD.txt").read_text()
+        self.assertIn("Theos", note)
+        self.assertIn("staged KernelLab.app layout only", proc.stdout)
 
 
 if __name__ == "__main__":
