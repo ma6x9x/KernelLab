@@ -11,7 +11,7 @@ This repository does not submit to Apple and does not describe that chain.
 
 ## 1. Install
 
-Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
+Install `kernellab_0.3.1_iphoneos-arm64.deb` with Sileo, Zebra, or dpkg.
 `postinst` creates `/var/jb/var/kernellab/caches` and
 `/var/jb/var/kernellab/probes`, registers the SpringBoard icon with
 `uicache -p /var/jb/Applications/KernelLab.app`, and prints this loop.

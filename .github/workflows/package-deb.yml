@@ -9,7 +9,12 @@ on:
       - "oracle_bridge.py"
       - "packaging/**"
       - "NOTES/**"
+      - "app/**"
+      - "tests/**"
+      - "README.md"
+      - "DEBIAN-STYLE.md"
       - ".github/workflows/package-deb.yml"
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -32,25 +37,37 @@ jobs:
           ./packaging/build.sh "${{ steps.ver.outputs.version }}" build
 
       - name: Verify deb
+        env:
+          DEB: build/kernellab_${{ steps.ver.outputs.version }}_iphoneos-arm64.deb
         run: |
-          dpkg-deb --info build/*.deb | head -20
-          dpkg-deb --contents build/*.deb
-          dpkg-deb --contents build/*.deb | grep -F './usr/bin/kernellab'
-          dpkg-deb --contents build/*.deb | grep -F './usr/bin/klconsole'
-          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/Info.plist'
-          dpkg-deb --contents build/*.deb | grep -F './Applications/KernelLab.app/KernelLab'
-          if dpkg-deb --contents build/*.deb | awk '{print $NF}' | grep -E '\.(m|h)$'; then
+          test -f "$DEB"
+          count=$(find build -maxdepth 1 -name 'kernellab_*.deb' | wc -l)
+          test "$count" -eq 1
+          dpkg-deb --info "$DEB" | head -20
+          dpkg-deb --contents "$DEB"
+          dpkg-deb --contents "$DEB" | grep -F './usr/bin/kernellab'
+          dpkg-deb --contents "$DEB" | grep -F './usr/bin/klconsole'
+          dpkg-deb --contents "$DEB" | grep -F './Applications/KernelLab.app/Info.plist'
+          dpkg-deb --contents "$DEB" | grep -F './Applications/KernelLab.app/KernelLab'
+          if dpkg-deb --contents "$DEB" | awk '{print $NF}' | grep -E '\.(m|h)$'; then
             echo "refusing a package that contains .m/.h sources" >&2
             exit 1
           fi
+          rm -rf /tmp/kernellab-deb-root
+          dpkg-deb -x "$DEB" /tmp/kernellab-deb-root
+          file /tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab | grep -F 'Mach-O'
+          python3 -c 'import pathlib,sys; b=pathlib.Path("/tmp/kernellab-deb-root/Applications/KernelLab.app/KernelLab").read_bytes(); sys.exit(0 if list(b[:4])==[0xCF,0xFA,0xED,0xFE] and not b.startswith(b"#!") else 1)'
+
+      - name: Unit tests
+        run: python3 -m unittest tests.test_week1 tests.test_app_shell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: kernellab-deb
-          path: build/kernellab_*.deb
+          path: build/kernellab_${{ steps.ver.outputs.version }}_iphoneos-arm64.deb
           if-no-files-found: error
 
       - name: Summary
         run: |
-          echo "kernellab version packaged (rootless Procursus layout). Bump the Version field in packaging/control to release." >> "$GITHUB_STEP_SUMMARY"
+          echo "kernellab deb ships an arm64 Mach-O KernelLab.app (rootless Procursus). postinst uicaches only when that executable is Mach-O." >> "$GITHUB_STEP_SUMMARY"

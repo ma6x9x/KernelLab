@@ -1,6 +1,35 @@
 #!/bin/sh
-# postinst — caches dir + the pick→diff→sim hint.
+# postinst — caches dir, empty probes workspace, SpringBoard uicache.
 # Rootless: no chown. Kernelcaches are never shipped; the operator drops them.
+# uicache -p runs only when KernelLab is a Mach-O (file(1) or MH magic).
+# A /bin/sh launcher is not an application and is skipped.
+set -u
+
+is_macho() {
+  bin=$1
+  [ -f "$bin" ] || return 1
+  if head -c 2 "$bin" 2>/dev/null | grep -q '^#!'; then
+    return 1
+  fi
+  if command -v file >/dev/null 2>&1; then
+    if file -b "$bin" 2>/dev/null | grep -q 'Mach-O'; then
+      return 0
+    fi
+  fi
+  magic=$(od -An -t x1 -N 4 "$bin" 2>/dev/null | tr -d ' \n' | tr 'A-F' 'a-f')
+  case "$magic" in
+    feedface|cefaedfe|feedfacf|cffaedfe) return 0 ;;
+  esac
+  return 1
+}
+
+if [ "${1:-}" = "--is-macho" ]; then
+  if is_macho "${2:-}"; then
+    exit 0
+  fi
+  exit 1
+fi
+
 chmod 755 /var/jb/usr/bin/kernellab /var/jb/usr/bin/klconsole /var/jb/usr/bin/oracle_bridge 2>/dev/null \
   || chmod 755 /usr/bin/kernellab /usr/bin/klconsole /usr/bin/oracle_bridge 2>/dev/null \
   || true
@@ -9,21 +38,13 @@ if [ -d /var/jb ]; then
   mkdir -p /var/jb/var/kernellab/probes
   HINTDIR=/var/jb/var/kernellab/caches
   PROBES=/var/jb/var/kernellab/probes
+  APP=/var/jb/Applications/KernelLab.app
 else
   mkdir -p /var/kernellab/caches 2>/dev/null || true
   mkdir -p /var/kernellab/probes 2>/dev/null || true
   HINTDIR=/var/kernellab/caches
   PROBES=/var/kernellab/probes
-fi
-if [ -d /var/jb/Applications/KernelLab.app ]; then
-  chmod 755 /var/jb/Applications/KernelLab.app/KernelLab 2>/dev/null || true
-  if [ -x /var/jb/usr/bin/uicache ]; then
-    /var/jb/usr/bin/uicache -p /var/jb/Applications/KernelLab.app || true
-  elif command -v uicache >/dev/null 2>&1; then
-    uicache -p /var/jb/Applications/KernelLab.app || true
-  else
-    echo "uicache not found; run: uicache -p /var/jb/Applications/KernelLab.app"
-  fi
+  APP=/Applications/KernelLab.app
 fi
 echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
 echo "  kernellab target list"
@@ -33,6 +54,20 @@ echo "  kernellab sim ident --feed /var/jb/var/kernellab/lab_bandit.json"
 echo "  kernellab gate   # APPLE-SUBMIT stays closed; JB-rig testing is not a fileable finding"
 echo "  oracle_bridge stages   # sandbox -> leak -> race -> krw -> sptm (map/emu labels)"
 echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
-echo "SpringBoard: KernelLab.app  (uicache -p /var/jb/Applications/KernelLab.app)"
 echo "probes workspace: ${PROBES}/  — drop your own trees here; new tests are files, not a new .deb."
+if is_macho "$APP/KernelLab"; then
+  chmod 755 "$APP/KernelLab" 2>/dev/null || true
+  if [ -x /var/jb/usr/bin/uicache ]; then
+    /var/jb/usr/bin/uicache -p /var/jb/Applications/KernelLab.app || true
+  elif command -v uicache >/dev/null 2>&1; then
+    uicache -p /var/jb/Applications/KernelLab.app || true
+  else
+    echo "uicache not found; run: uicache -p /var/jb/Applications/KernelLab.app"
+  fi
+  echo "SpringBoard: KernelLab.app registered (uicache -p /var/jb/Applications/KernelLab.app)."
+  echo "Respring if the icon is still missing."
+else
+  echo "KernelLab.app has no Mach-O executable; skipping uicache."
+  echo "SpringBoard does not register a /bin/sh launcher."
+fi
 exit 0

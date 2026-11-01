@@ -8,10 +8,20 @@ The `.deb` is the lab home. Mind is a separate repo. Lumina / P007 is the hands.
 
 ## Install on a rootless device
 
-Install `kernellab_0.3.0_iphoneos-arm64.deb` with Sileo (or Zebra, or dpkg).
-`postinst` registers the SpringBoard app and creates the two operator
-directories. The KernelLab icon appears on the home screen. Tapping it
-opens the existing localhost console (`klconsole` on `127.0.0.1:8737`).
+Install `kernellab_0.3.1_iphoneos-arm64.deb` with Sileo (or Zebra, or dpkg).
+`postinst` sees a real arm64 Mach-O at
+`/var/jb/Applications/KernelLab.app/KernelLab` and runs
+`uicache -p /var/jb/Applications/KernelLab.app`. The KernelLab icon
+appears on the home screen. Respring if it does not. 0.3.0 shipped a
+`/bin/sh` launcher; SpringBoard does not register those, which is why
+that build had no icon.
+
+Tapping the icon opens the soft UI: the Console tab `posix_spawn`s
+`/var/jb/usr/bin/kernellab` and shows its stdout. `klconsole` is still
+installed and still binds `127.0.0.1:8737`. The Probes tab lists `.m` and
+`.h` filenames under `/var/jb/var/kernellab/probes` and can write an empty
+comment stub labeled for Kolby. It does not compile, run, or generate
+probe sources.
 
 Drop your own extracted kernelcaches under:
 
@@ -116,6 +126,7 @@ on: 23F77, 24A435, and 24B119. Other build ids refuse the VA read.
 - `NOTES/` — design notes. Day one is `NOTES/003_jb_rig_day_one.md`.
   The canonical note is `NOTES/004_lum1na_parity.md`.
 - `packaging/` — rootless Procursus `.deb`, including `KernelLab.app`. See `DEBIAN-STYLE.md`.
+- `app/` — Theos application sources. `app/prebuilt/KernelLab.app` is the signed arm64 Mach-O the deb ships. `make -C app` on a Theos machine replaces it.
 - `/var/jb/var/kernellab/probes/` — operator-owned trees, created on install, not shipped.
 
 ## Console
