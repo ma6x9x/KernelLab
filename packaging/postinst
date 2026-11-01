@@ -1,7 +1,21 @@
 #!/bin/sh
-# postinst — chmod the harness (stage copies can drop the +x) and print the
-# first-tap hint. Rootless: no chown (dpkg --root-owner-group handles it).
-chmod 755 /var/jb/usr/bin/kernellab 2>/dev/null || chmod 755 /usr/bin/kernellab 2>/dev/null || true
-echo "kernellab installed. Try: kernellab tables --cache 23F77 --table iogpu.deviceconn"
-echo "Point KC at your own extracted kernelcaches (see /var/jb/usr/share/kernellab/README.md)." 2>/dev/null || true
+# postinst — caches dir + the pick→diff→sim hint.
+# Rootless: no chown. Kernelcaches are never shipped; the operator drops them.
+chmod 755 /var/jb/usr/bin/kernellab /var/jb/usr/bin/klconsole /var/jb/usr/bin/oracle_bridge 2>/dev/null \
+  || chmod 755 /usr/bin/kernellab /usr/bin/klconsole /usr/bin/oracle_bridge 2>/dev/null \
+  || true
+if [ -d /var/jb ]; then
+  mkdir -p /var/jb/var/kernellab/caches
+  HINTDIR=/var/jb/var/kernellab/caches
+else
+  mkdir -p /var/kernellab/caches 2>/dev/null || true
+  HINTDIR=/var/kernellab/caches
+fi
+echo "kernellab: drop extracted kernelcaches under ${HINTDIR}/<build>/ (this deb does not ship them)."
+echo "  kernellab target list"
+echo "  kernellab target set --build <BUILD> [--baseline <BUILD>]"
+echo "  kernellab diff"
+echo "  kernellab sim ident"
+echo "  kernellab gate   # APPLE-SUBMIT stays closed until kread/KRW"
+echo "klconsole (localhost only): klconsole  ->  http://127.0.0.1:8737"
 exit 0
