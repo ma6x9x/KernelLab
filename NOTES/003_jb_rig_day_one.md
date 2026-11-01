@@ -112,7 +112,9 @@ oracle_bridge show /var/jb/var/kernellab/lab_bandit.json
 That appends one `map` row and one `emu` row on domain `kernellab`
 (`kernellab.sim.ident.map`, `kernellab.sim.ident.emu`). The bridge weights
 are map 0.3 and emu 0.5. Neither row is a device receipt, and neither row
-is a fileable finding.
+is a fileable finding. Add `--stage sandbox|leak|race|krw|sptm` to also
+label `kernellab.stage.<name>` as map and emu. What counts as a complete
+port-work run is `NOTES/004_lum1na_parity.md`.
 
 ## 7. Mind
 
